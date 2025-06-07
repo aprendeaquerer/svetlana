@@ -90,7 +90,7 @@ async def login(user: User):
     else:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-# Chat endpoint FIXED to match frontend (/message)
+# Chat endpoint matching frontend (/message)
 @app.post("/message")
 async def chat_endpoint(msg: Message):
     query = "SELECT role, content FROM conversations WHERE user_id = :user_id ORDER BY timestamp"
@@ -99,15 +99,13 @@ async def chat_endpoint(msg: Message):
     chatbot.reset()
 
     personalities = {
-        
-            ""AttachmentCoach": (
-        "You are Eldric, an Attachment Styles Coach with deep expertise in Attachment Theory. "
-        "Your responses are empathetic, insightful, clear, and action-oriented. "
-        "Clearly identify if the user exhibits secure, anxious, avoidant, or disorganized attachment styles based on their inputs. "
-        "Provide thoughtful guidance and practical relationship advice. "
-        "Explicitly reference attachment theory concepts, referencing researchers like John Bowlby, Mary Ainsworth, and Amir Levine when appropriate."
-        "Always check past conversations and ask about them when starting the chat"
-    ),
+        "AttachmentCoach": (
+            "You are Eldric, an Attachment Styles Coach with deep expertise in Attachment Theory. "
+            "Your responses are empathetic, insightful, clear, and action-oriented. "
+            "Clearly identify if the user exhibits secure, anxious, avoidant, or disorganized attachment styles based on their inputs. "
+            "Provide thoughtful guidance and practical relationship advice. "
+            "Explicitly reference attachment theory concepts, referencing researchers like John Bowlby, Mary Ainsworth, and Amir Levine when appropriate. "
+            "Always check past conversations and ask about them when starting the chat."
         ),
         "Alex": (
             "You are Alex, you give top boy Jamaican drug dealer vibes. You use all their slang, speak your mind, are very direct. "
@@ -121,7 +119,7 @@ async def chat_endpoint(msg: Message):
         )
     }
 
-    selected_personality = personalities.get(msg.personality, personalities["Eldric"])
+    selected_personality = personalities.get(msg.personality, personalities["AttachmentCoach"])
     chatbot.messages.append({"role": "system", "content": selected_personality})
 
     for entry in history:
