@@ -127,17 +127,18 @@ async def chat_endpoint(msg: Message):
 
     response = chatbot.chat(msg.message)
 
-    conv_id_user = str(uuid.uuid4())
-    conv_id_bot = str(uuid.uuid4())
+    if msg.user_id != "invitado":
+        conv_id_user = str(uuid.uuid4())
+        conv_id_bot = str(uuid.uuid4())
 
-    await database.execute(
-        "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
-        {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message}
-    )
+        await database.execute(
+            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
+            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message}
+        )
 
-    await database.execute(
-        "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
-        {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
-    )
+        await database.execute(
+            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
+            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
+        )
 
     return {"response": response}
