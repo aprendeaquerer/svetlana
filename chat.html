@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pick Your Poison</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #1E3A8A;
+            --background-color: #F8F9FA;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 1rem;
+        }
+
+        input[type=text], select {
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 0.5rem;
+            box-sizing: border-box;
+        }
+
+        .user-msg { color: #2c3e50; }
+        .Eldric { color: #8e44ad; }
+        .Alex { color: #27ae60; }
+        .Svetlana { color: #e67e22; }
+        .loading { color: #aaa; font-style: italic; }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                height: 95vh;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Pick your poison</h2>
+
+    <label for="personality">Choose Personality:</label>
+    <select id="personality">
+        <option value="Eldric">Eldric (Empathic Advisor)</option>
+        <option value="Alex">Alex (Friendly & Casual)</option>
+        <option value="Svetlana">Svetlana (Professional)</option>
+    </select>
+
+    <div id="chat"></div>
+
+    <input type="text" id="user_message" placeholder="Type your message here...">
+</div>
+
+<script>
+    const chatDiv = document.getElementById('chat');
+    const userMessageInput = document.getElementById('user_message');
+
+    userMessageInput.addEventListener("keyup", function(event) {
+        if (event.key === "Enter") {
+            sendMessage();
+        }
+    });
+
+    async function sendMessage() {
+        const userMessage = userMessageInput.value.trim();
+        const username = sessionStorage.getItem('user_id');
+        const personality = document.getElementById('personality').value;
+
+        if (!username) {
+            alert("Session expired or not logged in.");
+            window.location.href = 'main.html';
+            return;
+        }
+
+        if (userMessage === "") return;
+
+        chatDiv.innerHTML += `<p class="user-msg"><strong>${username}:</strong> ${userMessage}</p>`;
+        chatDiv.innerHTML += `<p id="loading" class="loading">${personality} is thinking...</p>`;
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: username,
+                    message: userMessage,
+                    personality
+                })
+            });
+
+            document.getElementById('loading').remove();
+
+            if (response.ok) {
+                const result = await response.json();
+                chatDiv.innerHTML += `<p class="${personality}"><strong>${personality}:</strong> ${result.response}</p>`;
+                userMessageInput.value = '';
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            } else {
+                chatDiv.innerHTML += `<p class="loading">There was an error sending your message.</p>`;
+            }
+        } catch (error) {
+            document.getElementById('loading').remove();
+            chatDiv.innerHTML += `<p class="loading">Network error. Check your backend.</p>`;
+        }
+    }
+</script>
+
+</body>
+</html>
