@@ -17,7 +17,11 @@ app = FastAPI()
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change "*" to specific origins in production
+    allow_origins=[
+        "https://svetlana-frontend.vercel.app",
+        "https://www.aprendeaquerer.com",
+        "https://aprendeaquerer.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,15 +90,14 @@ async def login(user: User):
     else:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-# Chat endpoint
-@app.post("/chat")
+# Chat endpoint FIXED to match frontend (/message)
+@app.post("/message")
 async def chat_endpoint(msg: Message):
     query = "SELECT role, content FROM conversations WHERE user_id = :user_id ORDER BY timestamp"
     history = await database.fetch_all(query, values={"user_id": msg.user_id})
 
     chatbot.reset()
 
-    # Personality-based system prompts
     personalities = {
         "Eldric": (
             "Thou art Eldric, an exceedingly understanding, emotionally attuned, and empathic advisor. "
@@ -114,11 +117,9 @@ async def chat_endpoint(msg: Message):
         )
     }
 
-    # Set the system prompt based on chosen personality
     selected_personality = personalities.get(msg.personality, personalities["Eldric"])
     chatbot.messages.append({"role": "system", "content": selected_personality})
 
-    # Include history messages
     for entry in history:
         chatbot.messages.append({"role": entry["role"], "content": entry["content"]})
 
