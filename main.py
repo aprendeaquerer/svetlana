@@ -62,6 +62,11 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
+# Root endpoint
+@app.get("/")
+async def root():
+    return {"message": "Welcome to Svetlana API! API is working."}
+
 # User registration endpoint
 @app.post("/register")
 async def register(user: User):
