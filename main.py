@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from databases import Database
 from chatgpt_wrapper import ChatGPT
@@ -8,26 +8,24 @@ from passlib.context import CryptContext
 import os
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
 
 app = FastAPI()
 
-# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://svetlana-frontend.vercel.app",
         "https://www.aprendeaquerer.com",
         "https://aprendeaquerer.com",
+        "http://localhost:3000"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Pydantic models
 class Message(BaseModel):
     user_id: str
     message: str
@@ -37,14 +35,11 @@ class User(BaseModel):
     user_id: str
     password: str
 
-# ChatGPT wrapper initialization
 chatbot = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
 
-# Database tables creation on startup
 @app.on_event("startup")
 async def startup():
     await database.connect()
-
     await database.execute("""
         CREATE TABLE IF NOT EXISTS conversations (
             id TEXT PRIMARY KEY,
@@ -54,7 +49,6 @@ async def startup():
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     await database.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
@@ -66,12 +60,10 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-# Root endpoint
 @app.get("/")
 async def root():
     return {"message": "Welcome to Svetlana API! API is working."}
 
-# User registration endpoint
 @app.post("/register")
 async def register(user: User):
     hashed_password = pwd_context.hash(user.password)
@@ -79,18 +71,15 @@ async def register(user: User):
     await database.execute(query, values={"user_id": user.user_id, "hashed_password": hashed_password})
     return {"message": f"User {user.user_id} registered successfully!"}
 
-# User login endpoint
 @app.post("/login")
 async def login(user: User):
     query = "SELECT hashed_password FROM users WHERE user_id = :user_id"
     stored_user = await database.fetch_one(query, values={"user_id": user.user_id})
-
     if stored_user and pwd_context.verify(user.password, stored_user["hashed_password"]):
         return {"message": f"User {user.user_id} logged in successfully!"}
     else:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-# Chat endpoint matching frontend (/message)
 @app.post("/message")
 async def chat_endpoint(msg: Message):
     query = "SELECT role, content FROM conversations WHERE user_id = :user_id ORDER BY timestamp"
@@ -135,12 +124,10 @@ async def chat_endpoint(msg: Message):
     if msg.user_id != "invitado":
         conv_id_user = str(uuid.uuid4())
         conv_id_bot = str(uuid.uuid4())
-
         await database.execute(
             "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
             {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message}
         )
-
         await database.execute(
             "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
             {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
