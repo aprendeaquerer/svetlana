@@ -119,15 +119,16 @@ async def chat_endpoint(msg: Message):
     for entry in history:
         chatbot.messages.append({"role": entry["role"], "content": entry["content"]})
 
-    # Solución directa para saludo inicial
     if msg.message.strip().lower() == "saludo inicial" and msg.personality == "Eldric":
         response = (
-            "Hola, soy Eldric, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.\n\n"
-            "En psicología del apego, solemos hablar de cuatro estilos: seguro, ansioso, evitativo y desorganizado. Cada uno influye en cómo te vinculas emocionalmente.\n\n"
-            "Para comenzar, ¿quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?\n\n"
-            "a) Sí, quiero entender mi forma de querer.\n"
-            "b) Prefiero hablar de cómo me siento ahora.\n"
-            "c) No sé, sorpréndeme."
+            "<p><strong>Hola, soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.</p>"
+            "<p>En psicología del apego, solemos hablar de cuatro estilos: <strong>seguro, ansioso, evitativo y desorganizado</strong>. Cada uno influye en cómo te vinculas emocionalmente.</p>"
+            "<p>Para comenzar, ¿quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
+            "<ul>"
+            "<li>a) Sí, quiero entender mi forma de querer.</li>"
+            "<li>b) Prefiero hablar de cómo me siento ahora.</li>"
+            "<li>c) No sé, sorpréndeme.</li>"
+            "</ul>"
         )
     else:
         response = chatbot.chat(msg.message)
