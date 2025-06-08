@@ -127,7 +127,7 @@ async def chat_endpoint(msg: Message):
             "<ul>"
             "<li>a) Sí, quiero entender mi forma de querer.</li>"
             "<li>b) Prefiero hablar de cómo me siento ahora.</li>"
-            "<li>c) No sé, sorpréndeme.</li>"
+            "<li>c) Cuentame mas sobre el apego.</li>"
             "</ul>"
         )
     else:
