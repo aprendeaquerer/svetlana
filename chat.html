@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aprende a querer!!!!!!!!!!!!!!!!!!!!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #1E3A8A;
+      --background-color: #F8F9FA;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--background-color);
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      width: 90%;
+      max-width: 800px;
+      height: 95vh;
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--primary-color);
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+      background: #fefefe;
+    }
+
+    input[type=text], select {
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 0.5rem;
+      box-sizing: border-box;
+    }
+
+    .user-msg { color: #2c3e50; white-space: pre-wrap; }
+    .Eldric { color: #8e44ad; white-space: pre-wrap; }
+    .Alex { color: #27ae60; white-space: pre-wrap; }
+    .Svetlana { color: #e67e22; white-space: pre-wrap; }
+    .loading { color: #aaa; font-style: italic; }
+
+    @media (max-width: 768px) {
+      .container { width: 100%; height: 95vh; padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Aprende a querer</h2>
+
+  <label for="user_id">Tu nombre o apodo:</label>
+  <input type="text" id="user_id" placeholder="invitado" />
+
+  <label for="personality">Elige una personalidad:</label>
+  <select id="personality">
+    <option value="Eldric" selected>Eldric (Coach de estilos de apego)</option>
+    <option value="Alex">Alex (Amigable & callejero)</option>
+    <option value="Svetlana">Svetlana (insúltame sin filtro)</option>
+  </select>
+
+  <div id="chat"></div>
+  <input type="text" id="user_message" placeholder="Escribe tu mensaje y presiona Enter...">
+</div>
+
+<script>
+  const chatDiv = document.getElementById('chat');
+  const userMessageInput = document.getElementById('user_message');
+  const personalitySelect = document.getElementById('personality');
+  const userIdInput = document.getElementById('user_id');
+
+  userMessageInput.addEventListener("keyup", function (event) {
+    if (event.key === "Enter") {
+      sendMessage();
+    }
+  });
+
+  async function sendMessage(messageText = null) {
+    const userMessage = messageText || userMessageInput.value.trim();
+    const username = userIdInput?.value.trim() || "invitado";
+    const personality = personalitySelect.value;
+
+    if (userMessage === "") return;
+
+    if (!messageText) {
+      chatDiv.innerHTML += `<p class="user-msg"><strong>${username}:</strong> ${userMessage}</p>`;
+    }
+
+    chatDiv.innerHTML += `<p id="loading" class="loading">${personality} está pensando...</p>`;
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+
+    try {
+      const response = await fetch('https://svetlana-api-ak3a.onrender.com/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: username,
+          message: userMessage,
+          personality
+        })
+      });
+
+      document.getElementById('loading').remove();
+
+      if (response.ok) {
+        const result = await response.json();
+        chatDiv.innerHTML += `<div class="${personality}">${result.response}</div>`;
+        userMessageInput.value = '';
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+      } else {
+        chatDiv.innerHTML += `<p class="loading">Hubo un error al enviar el mensaje.</p>`;
+      }
+    } catch (error) {
+      document.getElementById('loading').remove();
+      chatDiv.innerHTML += `<p class="loading">Error de red. Intenta de nuevo.</p>`;
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+      sendMessage("saludo inicial");
+    }, 200);
+  });
+</script>
+</body>
+</html>
