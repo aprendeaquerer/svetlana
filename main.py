@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from databases import Database
 from chatgpt_wrapper import ChatGPT
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import uuid
 from passlib.context import CryptContext
 import os
+from typing import Dict
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -69,6 +70,15 @@ async def startup():
             hashed_password TEXT
         )
     """)
+    await database.execute("""
+        CREATE TABLE IF NOT EXISTS test_state (
+            user_id TEXT PRIMARY KEY,
+            state TEXT,
+            last_choice TEXT,
+            q1 TEXT,
+            q2 TEXT
+        )
+    """)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -96,18 +106,28 @@ async def login(user: User):
 
 @app.post("/message")
 async def chat_endpoint(msg: Message):
-    query = "SELECT role, content FROM conversations WHERE user_id = :user_id ORDER BY timestamp"
-    history = await database.fetch_all(query, values={"user_id": msg.user_id})
+    user_id = msg.user_id
+    message = msg.message.strip()
+
+    # Get or initialize test state
+    state_row = await database.fetch_one("SELECT state, last_choice, q1, q2 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+    state = state_row["state"] if state_row else None
+    last_choice = state_row["last_choice"] if state_row else None
+    q1 = state_row["q1"] if state_row else None
+    q2 = state_row["q2"] if state_row else None
+
+    async def set_state(new_state, choice=None, q1_val=None, q2_val=None):
+        if state_row:
+            return await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "user_id": user_id})
+        else:
+            return await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
 
     chatbot.reset()
-
-    # Always use Eldric's prompt
     chatbot.messages.append({"role": "system", "content": eldric_prompt})
 
-    for entry in history:
-        chatbot.messages.append({"role": entry["role"], "content": entry["content"]})
-
-    if msg.message.strip().lower() == "saludo inicial":
+    # Test flow logic
+    if state is None or message.lower() == "saludo inicial":
+        await set_state("greeting", None, None, None)
         response = (
             "<p><strong>Hola, soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.</p>"
             "<p>En psicología del apego, solemos hablar de cuatro estilos: <strong>seguro, ansioso, evitativo y desorganizado</strong>. Cada uno influye en cómo te vinculas emocionalmente.</p>"
@@ -118,8 +138,76 @@ async def chat_endpoint(msg: Message):
             "<li>c) Cuentame mas sobre el apego.</li>"
             "</ul>"
         )
+    elif state == "greeting" and message.upper() in ["A", "B", "C"]:
+        if message.upper() == "A":
+            await set_state("q1", None, None, None)
+            response = (
+                "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                "<ul>"
+                "<li>a) Me preocupo y pienso que algo está mal</li>"
+                "<li>b) Me enfado y me distancio</li>"
+                "<li>c) Entiendo que puede estar ocupada</li>"
+                "<li>d) Me siento confundido y no sé qué hacer</li>"
+                "</ul>"
+            )
+        elif message.upper() == "B":
+            await set_state(None, None, None, None)
+            response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
+        elif message.upper() == "C":
+            await set_state(None, None, None, None)
+            response = (
+                "<p>¡Por supuesto! El apego es cómo aprendimos a relacionarnos desde que éramos bebés. Nuestros primeros vínculos con nuestros cuidadores nos enseñaron patrones que repetimos en nuestras relaciones adultas.</p>"
+                "<p>Los estilos de apego son:</p>"
+                "<ul>"
+                "<li><strong>Seguro:</strong> Te sientes cómodo con la intimidad y la independencia</li>"
+                "<li><strong>Ansioso:</strong> Buscas mucha cercanía y te preocupas por el rechazo</li>"
+                "<li><strong>Evitativo:</strong> Prefieres mantener distancia emocional</li>"
+                "<li><strong>Desorganizado:</strong> Tienes patrones contradictorios</li>"
+                "</ul>"
+                "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
+            )
+    elif state == "q1" and message.upper() in ["A", "B", "C", "D"]:
+        await set_state("q2", None, message.upper(), None)
+        response = (
+            "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
+            "<ul>"
+            "<li>a) Me siento excluido y me duele</li>"
+            "<li>b) Me parece bien, yo también necesito mi espacio</li>"
+            "<li>c) Me preocupa pero trato de entender</li>"
+            "<li>d) Me siento confundido sobre cómo reaccionar</li>"
+            "</ul>"
+        )
+    elif state == "q2" and message.upper() in ["A", "B", "C", "D"]:
+        await set_state("q3", None, q1, message.upper())
+        response = (
+            "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
+            "<ul>"
+            "<li>a) Busco resolverlo inmediatamente</li>"
+            "<li>b) Necesito tiempo para procesar solo</li>"
+            "<li>c) Me paralizo y no sé qué hacer</li>"
+            "<li>d) Me alejo hasta que se calme</li>"
+            "</ul>"
+        )
+    elif state == "q3" and message.upper() in ["A", "B", "C", "D"]:
+        # Show result
+        await set_state(None, message.upper(), q1, q2)
+        q3 = message.upper()
+        if q3 == "A":
+            result = "ANSIOSO"
+            desc = "Buscas mucha cercanía y confirmación. Te preocupas por el rechazo o abandono."
+        elif q3 == "B":
+            result = "SEGURO"
+            desc = "Te sientes cómodo con la intimidad y la independencia. Manejas los conflictos de manera equilibrada."
+        elif q3 == "C":
+            result = "DESORGANIZADO"
+            desc = "Tienes patrones contradictorios en las relaciones. Puedes sentirte confundido sobre cómo reaccionar."
+        elif q3 == "D":
+            result = "EVITATIVO"
+            desc = "Prefieres mantener distancia emocional. Puedes alejarte durante conflictos."
+        response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
     else:
-        response = chatbot.chat(msg.message)
+        await set_state(None, None, None, None)
+        response = chatbot.chat(message)
 
     if msg.user_id != "invitado":
         conv_id_user = str(uuid.uuid4())
@@ -132,5 +220,7 @@ async def chat_endpoint(msg: Message):
             "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
             {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
         )
+
+    print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
 
     return {"response": response}
