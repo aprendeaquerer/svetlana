@@ -127,7 +127,7 @@ async def chat_endpoint(msg: Message):
         bot_messages = [entry["content"] for entry in history if entry["role"] == "assistant"]
         
         # Determine the current question based on the last bot message
-        if len(bot_messages) == 0 or "saludo inicial" in bot_messages[-1]:
+        if len(bot_messages) == 0 or "quieres hacer un pequeño test" in bot_messages[-1]:
             # First choice (response to initial greeting)
             if choice == 'A':
                 response = (
