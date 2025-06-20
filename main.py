@@ -69,6 +69,13 @@ async def startup():
             hashed_password TEXT
         )
     """)
+    await database.execute("""
+        CREATE TABLE IF NOT EXISTS test_state (
+            user_id TEXT PRIMARY KEY,
+            state TEXT,
+            last_choice TEXT
+        )
+    """)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -96,18 +103,23 @@ async def login(user: User):
 
 @app.post("/message")
 async def chat_endpoint(msg: Message):
-    query = "SELECT role, content FROM conversations WHERE user_id = :user_id ORDER BY timestamp"
-    history = await database.fetch_all(query, values={"user_id": msg.user_id})
+    # Get or initialize test state
+    state_row = await database.fetch_one("SELECT state, last_choice FROM test_state WHERE user_id = :user_id", values={"user_id": msg.user_id})
+    state = state_row["state"] if state_row else None
+    last_choice = state_row["last_choice"] if state_row else None
+
+    def set_state(new_state, choice=None):
+        if state_row:
+            return database.execute("UPDATE test_state SET state = :state, last_choice = :choice WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "user_id": msg.user_id})
+        else:
+            return database.execute("INSERT INTO test_state (user_id, state, last_choice) VALUES (:user_id, :state, :choice)", values={"user_id": msg.user_id, "state": new_state, "choice": choice})
 
     chatbot.reset()
-
-    # Always use Eldric's prompt
     chatbot.messages.append({"role": "system", "content": eldric_prompt})
 
-    for entry in history:
-        chatbot.messages.append({"role": entry["role"], "content": entry["content"]})
-
-    if msg.message.strip().lower() == "saludo inicial":
+    # Test flow logic
+    if state is None or msg.message.strip().lower() == "saludo inicial":
+        await set_state("greeting")
         response = (
             "<p><strong>Hola, soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.</p>"
             "<p>En psicología del apego, solemos hablar de cuatro estilos: <strong>seguro, ansioso, evitativo y desorganizado</strong>. Cada uno influye en cómo te vinculas emocionalmente.</p>"
@@ -118,190 +130,82 @@ async def chat_endpoint(msg: Message):
             "<li>c) Cuentame mas sobre el apego.</li>"
             "</ul>"
         )
-    elif msg.message.strip().upper() in ['A', 'B', 'C', 'D']:
-        # Handle A/B/C/D choices based on context
+    elif state == "greeting" and msg.message.strip().upper() in ["A", "B", "C"]:
         choice = msg.message.strip().upper()
-        
-        # Check conversation history to determine which question this is answering
-        user_messages = [entry["content"] for entry in history if entry["role"] == "user"]
-        bot_messages = [entry["content"] for entry in history if entry["role"] == "assistant"]
-        
-        # Determine the current question based on the last bot message
-        if len(bot_messages) == 0 or "quieres hacer un pequeño test" in bot_messages[-1]:
-            # First choice (response to initial greeting)
-            if choice == 'A':
-                response = (
-                    "<p>¡Perfecto! Vamos a explorar tu estilo de apego. Te haré algunas preguntas para entender mejor cómo te relacionas emocionalmente.</p>"
-                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
-                    "<ul>"
-                    "<li>a) Me preocupo y pienso que algo está mal</li>"
-                    "<li>b) Me enfado y me distancio</li>"
-                    "<li>c) Entiendo que puede estar ocupada</li>"
-                    "<li>d) Me siento confundido y no sé qué hacer</li>"
-                    "</ul>"
-                )
-            elif choice == 'B':
-                response = (
-                    "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
-                )
-            elif choice == 'C':
-                response = (
-                    "<p>¡Por supuesto! El apego es cómo aprendimos a relacionarnos desde que éramos bebés. Nuestros primeros vínculos con nuestros cuidadores nos enseñaron patrones que repetimos en nuestras relaciones adultas.</p>"
-                    "<p>Los estilos de apego son:</p>"
-                    "<ul>"
-                    "<li><strong>Seguro:</strong> Te sientes cómodo con la intimidad y la independencia</li>"
-                    "<li><strong>Ansioso:</strong> Buscas mucha cercanía y te preocupas por el rechazo</li>"
-                    "<li><strong>Evitativo:</strong> Prefieres mantener distancia emocional</li>"
-                    "<li><strong>Desorganizado:</strong> Tienes patrones contradictorios</li>"
-                    "</ul>"
-                    "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
-                )
-        elif "Primera pregunta" in bot_messages[-1]:
-            # Second choice (response to first test question)
-            if choice == 'A':
-                response = (
-                    "<p>Entiendo, esa preocupación es común. Vamos a la siguiente pregunta.</p>"
-                    "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
-                    "<ul>"
-                    "<li>a) Me siento excluido y me duele</li>"
-                    "<li>b) Me parece bien, yo también necesito mi espacio</li>"
-                    "<li>c) Me preocupa pero trato de entender</li>"
-                    "<li>d) Me siento confundido sobre cómo reaccionar</li>"
-                    "</ul>"
-                )
-            elif choice == 'B':
-                response = (
-                    "<p>La distancia puede ser una forma de protegerse. Continuemos.</p>"
-                    "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
-                    "<ul>"
-                    "<li>a) Me siento excluido y me duele</li>"
-                    "<li>b) Me parece bien, yo también necesito mi espacio</li>"
-                    "<li>c) Me preocupa pero trato de entender</li>"
-                    "<li>d) Me siento confundido sobre cómo reaccionar</li>"
-                    "</ul>"
-                )
-            elif choice == 'C':
-                response = (
-                    "<p>Esa comprensión es muy valiosa. Sigamos explorando.</p>"
-                    "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
-                    "<ul>"
-                    "<li>a) Me siento excluido y me duele</li>"
-                    "<li>b) Me parece bien, yo también necesito mi espacio</li>"
-                    "<li>c) Me preocupa pero trato de entender</li>"
-                    "<li>d) Me siento confundido sobre cómo reaccionar</li>"
-                    "</ul>"
-                )
-            elif choice == 'D':
-                response = (
-                    "<p>Esa confusión es natural. Vamos a la siguiente pregunta.</p>"
-                    "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
-                    "<ul>"
-                    "<li>a) Me siento excluido y me duele</li>"
-                    "<li>b) Me parece bien, yo también necesito mi espacio</li>"
-                    "<li>c) Me preocupa pero trato de entender</li>"
-                    "<li>d) Me siento confundido sobre cómo reaccionar</li>"
-                    "</ul>"
-                )
-        elif "Segunda pregunta" in bot_messages[-1]:
-            # Third choice (response to second test question)
-            if choice == 'A':
-                response = (
-                    "<p>Ese sentimiento de exclusión es muy real. Última pregunta.</p>"
-                    "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
-                    "<ul>"
-                    "<li>a) Busco resolverlo inmediatamente</li>"
-                    "<li>b) Necesito tiempo para procesar solo</li>"
-                    "<li>c) Me paralizo y no sé qué hacer</li>"
-                    "<li>d) Me alejo hasta que se calme</li>"
-                    "</ul>"
-                )
-            elif choice == 'B':
-                response = (
-                    "<p>El espacio personal es importante para ti. Última pregunta.</p>"
-                    "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
-                    "<ul>"
-                    "<li>a) Busco resolverlo inmediatamente</li>"
-                    "<li>b) Necesito tiempo para procesar solo</li>"
-                    "<li>c) Me paralizo y no sé qué hacer</li>"
-                    "<li>d) Me alejo hasta que se calme</li>"
-                    "</ul>"
-                )
-            elif choice == 'C':
-                response = (
-                    "<p>Esa preocupación equilibrada es muy sana. Última pregunta.</p>"
-                    "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
-                    "<ul>"
-                    "<li>a) Busco resolverlo inmediatamente</li>"
-                    "<li>b) Necesito tiempo para procesar solo</li>"
-                    "<li>c) Me paralizo y no sé qué hacer</li>"
-                    "<li>d) Me alejo hasta que se calme</li>"
-                    "</ul>"
-                )
-            elif choice == 'D':
-                response = (
-                    "<p>Esa confusión es comprensible. Última pregunta.</p>"
-                    "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
-                    "<ul>"
-                    "<li>a) Busco resolverlo inmediatamente</li>"
-                    "<li>b) Necesito tiempo para procesar solo</li>"
-                    "<li>c) Me paralizo y no sé qué hacer</li>"
-                    "<li>d) Me alejo hasta que se calme</li>"
-                    "</ul>"
-                )
-        elif "Tercera pregunta" in bot_messages[-1]:
-            # Fourth choice (response to third test question) - Show results
-            if choice == 'A':
-                response = (
-                    "<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser ANSIOSO.</strong></p>"
-                    "<p>Características del apego ansioso:</p>"
-                    "<ul>"
-                    "<li>Buscas mucha cercanía y confirmación</li>"
-                    "<li>Te preocupas por el rechazo o abandono</li>"
-                    "<li>Puedes ser muy sensible a las señales de tu pareja</li>"
-                    "<li>Tiendes a resolver conflictos inmediatamente</li>"
-                    "</ul>"
-                    "<p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
-                )
-            elif choice == 'B':
-                response = (
-                    "<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser SEGURO.</strong></p>"
-                    "<p>Características del apego seguro:</p>"
-                    "<ul>"
-                    "<li>Te sientes cómodo con la intimidad y la independencia</li>"
-                    "<li>Entiendes que las personas necesitan su espacio</li>"
-                    "<li>Manejas los conflictos de manera equilibrada</li>"
-                    "<li>Tienes una visión positiva de las relaciones</li>"
-                    "</ul>"
-                    "<p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a mantener esta seguridad?</p>"
-                )
-            elif choice == 'C':
-                response = (
-                    "<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser DESORGANIZADO.</strong></p>"
-                    "<p>Características del apego desorganizado:</p>"
-                    "<ul>"
-                    "<li>Tienes patrones contradictorios en las relaciones</li>"
-                    "<li>Puedes sentirte confundido sobre cómo reaccionar</li>"
-                    "<li>Necesitas más apoyo para procesar emociones</li>"
-                    "<li>Los conflictos pueden paralizarte</li>"
-                    "</ul>"
-                    "<p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a encontrar más claridad?</p>"
-                )
-            elif choice == 'D':
-                response = (
-                    "<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser EVITATIVO.</strong></p>"
-                    "<p>Características del apego evitativo:</p>"
-                    "<ul>"
-                    "<li>Prefieres mantener distancia emocional</li>"
-                    "<li>Valoras mucho tu independencia</li>"
-                    "<li>Puedes alejarte durante conflictos</li>"
-                    "<li>Te cuesta mostrar vulnerabilidad</li>"
-                    "</ul>"
-                    "<p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a abrirte más?</p>"
-                )
-        else:
-            # For other A/B/C/D choices, send to ChatGPT with context
-            response = chatbot.chat(msg.message)
+        if choice == "A":
+            await set_state("q1", choice)
+            response = (
+                "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                "<ul>"
+                "<li>a) Me preocupo y pienso que algo está mal</li>"
+                "<li>b) Me enfado y me distancio</li>"
+                "<li>c) Entiendo que puede estar ocupada</li>"
+                "<li>d) Me siento confundido y no sé qué hacer</li>"
+                "</ul>"
+            )
+        elif choice == "B":
+            await set_state(None)
+            response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
+        elif choice == "C":
+            await set_state(None)
+            response = (
+                "<p>¡Por supuesto! El apego es cómo aprendimos a relacionarnos desde que éramos bebés. Nuestros primeros vínculos con nuestros cuidadores nos enseñaron patrones que repetimos en nuestras relaciones adultas.</p>"
+                "<p>Los estilos de apego son:</p>"
+                "<ul>"
+                "<li><strong>Seguro:</strong> Te sientes cómodo con la intimidad y la independencia</li>"
+                "<li><strong>Ansioso:</strong> Buscas mucha cercanía y te preocupas por el rechazo</li>"
+                "<li><strong>Evitativo:</strong> Prefieres mantener distancia emocional</li>"
+                "<li><strong>Desorganizado:</strong> Tienes patrones contradictorios</li>"
+                "</ul>"
+                "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
+            )
+    elif state == "q1" and msg.message.strip().upper() in ["A", "B", "C", "D"]:
+        await set_state("q2", msg.message.strip().upper())
+        response = (
+            "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
+            "<ul>"
+            "<li>a) Me siento excluido y me duele</li>"
+            "<li>b) Me parece bien, yo también necesito mi espacio</li>"
+            "<li>c) Me preocupa pero trato de entender</li>"
+            "<li>d) Me siento confundido sobre cómo reaccionar</li>"
+            "</ul>"
+        )
+    elif state == "q2" and msg.message.strip().upper() in ["A", "B", "C", "D"]:
+        await set_state("q3", msg.message.strip().upper())
+        response = (
+            "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
+            "<ul>"
+            "<li>a) Busco resolverlo inmediatamente</li>"
+            "<li>b) Necesito tiempo para procesar solo</li>"
+            "<li>c) Me paralizo y no sé qué hacer</li>"
+            "<li>d) Me alejo hasta que se calme</li>"
+            "</ul>"
+        )
+    elif state == "q3" and msg.message.strip().upper() in ["A", "B", "C", "D"]:
+        # Collect all choices for result
+        q1_choice = last_choice
+        q2_row = await database.fetch_one("SELECT last_choice FROM test_state WHERE user_id = :user_id", values={"user_id": msg.user_id})
+        q2_choice = q2_row["last_choice"] if q2_row else None
+        q3_choice = msg.message.strip().upper()
+        await set_state("result", q3_choice)
+        # For demo, just use q3_choice for result
+        if q3_choice == "A":
+            result = "ANSIOSO"
+            desc = "Buscas mucha cercanía y confirmación. Te preocupas por el rechazo o abandono."
+        elif q3_choice == "B":
+            result = "SEGURO"
+            desc = "Te sientes cómodo con la intimidad y la independencia. Manejas los conflictos de manera equilibrada."
+        elif q3_choice == "C":
+            result = "DESORGANIZADO"
+            desc = "Tienes patrones contradictorios en las relaciones. Puedes sentirte confundido sobre cómo reaccionar."
+        elif q3_choice == "D":
+            result = "EVITATIVO"
+            desc = "Prefieres mantener distancia emocional. Puedes alejarte durante conflictos."
+        response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
+        await set_state(None)
     else:
+        # Not in test flow, fallback to ChatGPT
+        await set_state(None)
         response = chatbot.chat(msg.message)
 
     if msg.user_id != "invitado":
