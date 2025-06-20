@@ -220,4 +220,4 @@ async def chat_endpoint(msg: Message):
             {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
         )
 
-    return {"response": response}
+    return {"response": response, "state": state, "last_choice": last_choice}
