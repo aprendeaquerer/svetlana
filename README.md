@@ -29,6 +29,7 @@
 - **One-by-one Questions**: Progressive test with state tracking
 - **Session Management**: Persistent state for both registered users and guests
 - **Mobile Optimized**: Auto-scroll and responsive design
+- **Knowledge Injection**: Context-aware responses using curated book knowledge
 
 ### User Management
 - **Guest Users**: Session ID stored in localStorage for persistent state
@@ -70,10 +71,23 @@ git push
 - `conversations` - Chat history
 - `users` - User accounts
 - `test_state` - Attachment test progress
+- `eldric_knowledge` - Curated knowledge chunks from books
 
 ## Recent Updates
 
-### Mobile Auto-Scroll (Latest)
+### Conversation Flow Fix (Latest)
+- Fixed greeting loop issue where Eldric kept offering the test repeatedly
+- Test now only starts when explicitly requested ("saludo inicial", "hacer test", etc.)
+- Normal conversations flow naturally without test interruptions
+- Added simple greeting for new users without pushing test
+
+### Knowledge Injection System
+- Keyword extraction from user messages
+- Database queries for relevant knowledge chunks
+- Context-aware responses using curated book content
+- Support for multiple books: "Attached" and additional titles
+
+### Mobile Auto-Scroll
 - Fixed auto-scroll functionality for mobile devices
 - Improved CSS with `-webkit-overflow-scrolling: touch`
 - Fixed input positioning on mobile
@@ -98,6 +112,7 @@ git push
 - Test A/B/C functionality after changes
 - Verify mobile auto-scroll works
 - Check session persistence for guest users
+- Knowledge base is automatically queried for relevant responses
 
 ## Populating the Knowledge Base for Eldric
 
@@ -111,4 +126,4 @@ cd c:/scripts
 python seed_from_json.py
 ```
 
-This will load the knowledge chunks into the database, making them available for Eldric's context-aware responses. 
+This will load the knowledge chunks into the database, making them available for Eldric's context-aware responses.
