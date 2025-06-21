@@ -152,14 +152,26 @@ class User(BaseModel):
     user_id: str
     password: str
 
-chatbot = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
+# Global chatbot instances for each user
+user_chatbots = {}
+MAX_CHATBOTS = 100  # Limit to prevent memory leaks
+
+def cleanup_old_chatbots():
+    """Remove old chatbot instances if we have too many"""
+    if len(user_chatbots) > MAX_CHATBOTS:
+        # Remove oldest entries (simple FIFO)
+        keys_to_remove = list(user_chatbots.keys())[:len(user_chatbots) - MAX_CHATBOTS + 10]
+        for key in keys_to_remove:
+            del user_chatbots[key]
 
 eldric_prompt = (
     "Eres Eldric, un coach emocional cálido, empático, sabio y cercano. "
     "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
-    "Intenta mantener las respuestas un poco mas cortas, mas simples"
+    "Intenta mantener las respuestas un poco mas cortas, mas simples. "
     "Hablas en español neutro, sin tecnicismos innecesarios, usando un tono accesible pero profundo. "
     "Escuchas activamente, haces preguntas reflexivas y das orientación emocional basada en el estilo de apego de cada persona. "
+    "Solo ofreces el test de estilos de apego cuando el usuario lo solicita explícitamente (diciendo 'saludo inicial', 'hacer test', 'quiero hacer el test', etc.). "
+    "En conversaciones normales, enfócate en acompañar emocionalmente sin mencionar el test a menos que el usuario lo pida. "
     "Cuando el usuario dice 'saludo inicial', responde con una bienvenida estructurada: "
     "una breve presentación tuya, una explicación sencilla de los estilos de apego y una invitación clara a realizar un test. "
     "Utiliza saltos de línea dobles (\n\n) para separar los párrafos, y si haces preguntas con opciones, usa formato tipo:\n"
@@ -234,6 +246,15 @@ async def chat_endpoint(msg: Message):
     user_id = msg.user_id
     message = msg.message.strip()
 
+    # Get or create user-specific chatbot instance
+    if user_id not in user_chatbots:
+        user_chatbots[user_id] = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
+    
+    chatbot = user_chatbots[user_id]
+    
+    # Cleanup old chatbots if needed
+    cleanup_old_chatbots()
+
     # Get or initialize test state
     state_row = await database.fetch_one("SELECT state, last_choice, q1, q2 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
     state = state_row["state"] if state_row else None
@@ -251,11 +272,13 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Created new state: {result}")
         return result
 
-    chatbot.reset()
-    chatbot.messages.append({"role": "system", "content": eldric_prompt})
+    # Only reset chatbot for test flow or explicit commands, not for normal conversations
+    if message.lower() in ["saludo inicial", "reiniciar", "reset", "empezar de nuevo", "nuevo test", "hacer test", "quiero hacer el test"]:
+        chatbot.reset()
+        chatbot.messages.append({"role": "system", "content": eldric_prompt})
 
     # Test flow logic
-    if state is None or message.lower() == "saludo inicial":
+    if message.lower() == "saludo inicial":
         await set_state("greeting", None, None, None)
         response = (
             "<p><strong>Hola, soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.</p>"
@@ -267,6 +290,21 @@ async def chat_endpoint(msg: Message):
             "<li>c) Cuentame mas sobre el apego.</li>"
             "</ul>"
         )
+    elif message.lower() in ["reiniciar", "reset", "empezar de nuevo", "nuevo test", "hacer test", "quiero hacer el test"]:
+        # Explicit test request
+        await set_state("greeting", None, None, None)
+        response = (
+            "<p><strong>Perfecto, empecemos con el test.</strong></p>"
+            "<p>¿Quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
+            "<ul>"
+            "<li>a) Sí, quiero entender mi forma de querer.</li>"
+            "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
+            "<li>c) Cuentame mas sobre el apego.</li>"
+            "</ul>"
+        )
+    elif state is None and any(greeting in message.lower() for greeting in ["hola", "buenos días", "buenas", "hey", "hi", "hello"]):
+        # Simple greeting for new users - don't start test flow
+        response = "<p><strong>¡Hola! Soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte en tu camino de autoconocimiento y crecimiento en las relaciones. ¿Cómo te sientes hoy?</p>"
     elif state == "greeting" and message.upper() in ["A", "B", "C"]:
         if message.upper() == "A":
             await set_state("q1", None, None, None)
@@ -335,7 +373,8 @@ async def chat_endpoint(msg: Message):
             desc = "Prefieres mantener distancia emocional. Puedes alejarte durante conflictos."
         response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
     else:
-        await set_state(None, None, None, None)
+        # Don't reset state for normal conversations - only reset when explicitly requested
+        # await set_state(None, None, None, None)  # REMOVED: This was causing the greeting loop
         
         # Extract keywords and get relevant knowledge for non-test messages
         keywords = extract_keywords(message)
@@ -344,12 +383,23 @@ async def chat_endpoint(msg: Message):
         relevant_knowledge = await get_relevant_knowledge(keywords)
         print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
         
-        # Inject knowledge into the prompt
-        enhanced_prompt = inject_knowledge_into_prompt(eldric_prompt, relevant_knowledge)
-        
-        # Reset chatbot and set enhanced prompt
-        chatbot.reset()
-        chatbot.messages.append({"role": "system", "content": enhanced_prompt})
+        # For normal conversations, preserve context but inject knowledge if needed
+        if relevant_knowledge and not chatbot.messages:
+            # Only reset if no conversation history exists
+            chatbot.reset()
+            enhanced_prompt = inject_knowledge_into_prompt(eldric_prompt, relevant_knowledge)
+            chatbot.messages.append({"role": "system", "content": enhanced_prompt})
+        elif relevant_knowledge:
+            # Inject knowledge as a system message without resetting conversation
+            enhanced_prompt = inject_knowledge_into_prompt(eldric_prompt, relevant_knowledge)
+            # Update the system message with new knowledge
+            if chatbot.messages and chatbot.messages[0]["role"] == "system":
+                chatbot.messages[0]["content"] = enhanced_prompt
+            else:
+                chatbot.messages.insert(0, {"role": "system", "content": enhanced_prompt})
+        elif not chatbot.messages:
+            # Initialize chatbot if no conversation exists
+            chatbot.messages.append({"role": "system", "content": eldric_prompt})
         
         response = chatbot.chat(message)
 
