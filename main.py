@@ -6,11 +6,128 @@ from pydantic import BaseModel
 import uuid
 from passlib.context import CryptContext
 import os
-from typing import Dict
+from typing import Dict, List
+import re
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
+
+# Keyword extraction function
+def extract_keywords(message: str) -> List[str]:
+    """
+    Extract relevant keywords from user message for attachment theory knowledge lookup.
+    Uses rule-based extraction with common attachment theory terms and emotional keywords.
+    """
+    # Convert to lowercase for matching
+    message_lower = message.lower()
+    
+    # Define attachment theory keywords and their variations
+    attachment_keywords = {
+        'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación'],
+        'avoidant': ['evitativo', 'evito', 'distancia', 'independiente', 'solo', 'espacio', 'alejado', 'frío', 'distante'],
+        'secure': ['seguro', 'confianza', 'equilibrio', 'cómodo', 'tranquilo', 'estable', 'sano'],
+        'disorganized': ['desorganizado', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
+        'relationship': ['relación', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
+        'communication': ['comunicación', 'hablar', 'expresar', 'decir', 'conversar'],
+        'conflict': ['conflicto', 'pelea', 'discusión', 'problema', 'disputa'],
+        'trust': ['confianza', 'confiar', 'seguro', 'seguridad'],
+        'emotions': ['emoción', 'sentir', 'sentimiento', 'triste', 'feliz', 'enojado', 'frustrado']
+    }
+    
+    # Extract keywords based on matches
+    found_keywords = []
+    
+    for category, keywords in attachment_keywords.items():
+        for keyword in keywords:
+            if keyword in message_lower:
+                found_keywords.append(category)
+                break  # Only add category once
+    
+    # Add specific attachment style detection
+    if any(word in message_lower for word in ['ansioso', 'ansiedad', 'preocupado', 'miedo']):
+        found_keywords.append('anxious')
+    if any(word in message_lower for word in ['evito', 'distancia', 'independiente', 'solo']):
+        found_keywords.append('avoidant')
+    if any(word in message_lower for word in ['seguro', 'confianza', 'equilibrio']):
+        found_keywords.append('secure')
+    if any(word in message_lower for word in ['confundido', 'contradictorio', 'caos']):
+        found_keywords.append('disorganized')
+    
+    # Remove duplicates while preserving order
+    unique_keywords = []
+    for keyword in found_keywords:
+        if keyword not in unique_keywords:
+            unique_keywords.append(keyword)
+    
+    return unique_keywords[:3]  # Return top 3 most relevant keywords
+
+async def get_relevant_knowledge(keywords: List[str]) -> str:
+    """
+    Query the eldric_knowledge table for relevant content based on keywords.
+    Returns a formatted string with relevant knowledge chunks.
+    """
+    if not keywords:
+        return ""
+    
+    try:
+        # Build query to find knowledge chunks that match any of the keywords
+        # Using ILIKE for case-insensitive matching
+        query = """
+        SELECT content, tags 
+        FROM eldric_knowledge 
+        WHERE """
+        
+        conditions = []
+        values = {}
+        
+        for i, keyword in enumerate(keywords):
+            conditions.append(f"tags ILIKE :tag_{i}")
+            values[f"tag_{i}"] = f"%{keyword}%"
+        
+        query += " OR ".join(conditions)
+        query += " ORDER BY RANDOM() LIMIT 5"
+        
+        # Execute query
+        rows = await database.fetch_all(query, values=values)
+        
+        if not rows:
+            return ""
+        
+        # Format the knowledge chunks
+        knowledge_text = "\n\nConocimiento relevante para esta conversación:\n"
+        for i, row in enumerate(rows, 1):
+            knowledge_text += f"{i}. {row['content']}\n"
+        
+        return knowledge_text
+        
+    except Exception as e:
+        print(f"Error querying knowledge database: {e}")
+        return ""
+
+def inject_knowledge_into_prompt(base_prompt: str, knowledge: str) -> str:
+    """
+    Inject relevant knowledge into the system prompt while maintaining Eldric's personality.
+    """
+    if not knowledge:
+        return base_prompt
+    
+    # Insert knowledge after the main personality description but before the specific instructions
+    injection_point = base_prompt.find("Cuando el usuario dice 'saludo inicial'")
+    
+    if injection_point != -1:
+        # Insert knowledge before the specific instructions
+        enhanced_prompt = (
+            base_prompt[:injection_point] + 
+            knowledge + 
+            "\n\n" +
+            base_prompt[injection_point:]
+        )
+    else:
+        # If we can't find the injection point, append at the end
+        enhanced_prompt = base_prompt + "\n\n" + knowledge
+    
+    return enhanced_prompt
 
 app = FastAPI()
 
@@ -79,6 +196,14 @@ async def startup():
             q2 TEXT
         )
     """)
+    await database.execute("""
+        CREATE TABLE IF NOT EXISTS eldric_knowledge (
+            id SERIAL PRIMARY KEY,
+            content TEXT NOT NULL,
+            tags TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -134,7 +259,7 @@ async def chat_endpoint(msg: Message):
             "<p>Para comenzar, ¿quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
             "<ul>"
             "<li>a) Sí, quiero entender mi forma de querer.</li>"
-            "<li>b) Prefiero hablar de cómo me siento ahora.</li>"
+            "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
             "<li>c) Cuentame mas sobre el apego.</li>"
             "</ul>"
         )
@@ -207,6 +332,21 @@ async def chat_endpoint(msg: Message):
         response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
     else:
         await set_state(None, None, None, None)
+        
+        # Extract keywords and get relevant knowledge for non-test messages
+        keywords = extract_keywords(message)
+        print(f"[DEBUG] Extracted keywords: {keywords}")
+        
+        relevant_knowledge = await get_relevant_knowledge(keywords)
+        print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
+        
+        # Inject knowledge into the prompt
+        enhanced_prompt = inject_knowledge_into_prompt(eldric_prompt, relevant_knowledge)
+        
+        # Reset chatbot and set enhanced prompt
+        chatbot.reset()
+        chatbot.messages.append({"role": "system", "content": enhanced_prompt})
+        
         response = chatbot.chat(message)
 
     if msg.user_id != "invitado":
