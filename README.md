@@ -1,0 +1,114 @@
+# Aprende a Querer - Chatbot Project
+
+## Project Structure
+
+### Frontend
+- **Location**: `C:\frontend`
+- **Deployment**: Vercel (https://svetlana-frontend.vercel.app)
+- **Main files**:
+  - `index.html` - Landing page with chatbot iframe
+  - `chat.html` - Chatbot interface with mobile auto-scroll
+  - `login.html` - User login page
+  - `register.html` - User registration page
+  - `assets/` - CSS, JS, images, fonts
+
+### Backend
+- **Location**: `C:\wrapper`
+- **Deployment**: Render (https://svetlana-api-ak3a.onrender.com)
+- **Main files**:
+  - `main.py` - FastAPI app with chat endpoint and test flow
+  - `svetlana_personality.py` - Chatbot personality configuration
+  - `chatgpt_wrapper.py` - ChatGPT integration
+  - `requirements.txt` - Python dependencies
+
+## Key Features
+
+### Chatbot Functionality
+- **Eldric**: Emotional coach with attachment theory expertise
+- **A/B/C Test Flow**: Interactive attachment style assessment
+- **One-by-one Questions**: Progressive test with state tracking
+- **Session Management**: Persistent state for both registered users and guests
+- **Mobile Optimized**: Auto-scroll and responsive design
+
+### User Management
+- **Guest Users**: Session ID stored in localStorage for persistent state
+- **Registered Users**: Database-backed user accounts and conversation history
+- **Authentication**: Login/register system with bcrypt password hashing
+
+## Development Workflow
+
+### Frontend Development
+```bash
+cd C:\frontend
+# Edit HTML/CSS/JS files
+git add .
+git commit -m "description"
+git push
+# Auto-deploys to Vercel
+```
+
+### Backend Development
+```bash
+cd C:\wrapper
+# Edit Python files
+git add .
+git commit -m "description"
+git push
+# Auto-deploys to Render
+```
+
+## API Endpoints
+
+- `GET /` - Health check
+- `POST /message` - Chat endpoint
+- `POST /register` - User registration
+- `POST /login` - User authentication
+
+## Database Schema
+
+### Tables
+- `conversations` - Chat history
+- `users` - User accounts
+- `test_state` - Attachment test progress
+
+## Recent Updates
+
+### Mobile Auto-Scroll (Latest)
+- Fixed auto-scroll functionality for mobile devices
+- Improved CSS with `-webkit-overflow-scrolling: touch`
+- Fixed input positioning on mobile
+- Multiple scroll methods for better compatibility
+
+### Test Flow
+- A/B/C/D answer detection working
+- Questions sent one by one
+- Persistent state tracking
+- Session ID management for guests
+
+## Deployment URLs
+
+- **Frontend**: https://svetlana-frontend.vercel.app
+- **Backend API**: https://svetlana-api-ak3a.onrender.com
+- **Production Site**: https://www.aprendeaquerer.com
+
+## Notes for Future Development
+
+- Always edit frontend files in `C:\frontend`
+- Always edit backend files in `C:\wrapper`
+- Test A/B/C functionality after changes
+- Verify mobile auto-scroll works
+- Check session persistence for guest users
+
+## Populating the Knowledge Base for Eldric
+
+To populate the eldric_knowledge table with curated knowledge from the book "Attached":
+
+1. Make sure you have the files `attached_knowledge.json` and `seed_from_json.py` in your `c:/scripts` directory.
+2. Run the following command in your terminal:
+
+```bash
+cd c:/scripts
+python seed_from_json.py
+```
+
+This will load the knowledge chunks into the database, making them available for Eldric's context-aware responses. 
