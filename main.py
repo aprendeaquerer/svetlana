@@ -117,10 +117,14 @@ async def chat_endpoint(msg: Message):
     q2 = state_row["q2"] if state_row else None
 
     async def set_state(new_state, choice=None, q1_val=None, q2_val=None):
+        print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}")
         if state_row:
-            return await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "user_id": user_id})
+            result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "user_id": user_id})
+            print(f"[DEBUG] Updated existing state: {result}")
         else:
-            return await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
+            result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
+            print(f"[DEBUG] Created new state: {result}")
+        return result
 
     chatbot.reset()
     chatbot.messages.append({"role": "system", "content": eldric_prompt})
@@ -134,7 +138,7 @@ async def chat_endpoint(msg: Message):
             "<p>Para comenzar, ¿quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
             "<ul>"
             "<li>a) Sí, quiero entender mi forma de querer.</li>"
-            "<li>b) Prefiero hablar de cómo me siento ahora.</li>"
+            "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
             "<li>c) Cuentame mas sobre el apego.</li>"
             "</ul>"
         )
@@ -222,5 +226,8 @@ async def chat_endpoint(msg: Message):
         )
 
     print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
+    print(f"[DEBUG] State details: last_choice={last_choice}, q1={q1}, q2={q2}")
+    print(f"[DEBUG] Response length: {len(response)}")
+    print(f"[DEBUG] Current state: {state}, Message: '{message}', Response preview: {response[:100]}...")
 
     return {"response": response}
