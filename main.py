@@ -154,15 +154,6 @@ class User(BaseModel):
 
 # Global chatbot instances for each user
 user_chatbots = {}
-MAX_CHATBOTS = 100  # Limit to prevent memory leaks
-
-def cleanup_old_chatbots():
-    """Remove old chatbot instances if we have too many"""
-    if len(user_chatbots) > MAX_CHATBOTS:
-        # Remove oldest entries (simple FIFO)
-        keys_to_remove = list(user_chatbots.keys())[:len(user_chatbots) - MAX_CHATBOTS + 10]
-        for key in keys_to_remove:
-            del user_chatbots[key]
 
 eldric_prompt = (
     "Eres Eldric, un coach emocional cálido, empático, sabio y cercano. "
@@ -252,9 +243,6 @@ async def chat_endpoint(msg: Message):
     
     chatbot = user_chatbots[user_id]
     
-    # Cleanup old chatbots if needed
-    cleanup_old_chatbots()
-
     # Get or initialize test state
     state_row = await database.fetch_one("SELECT state, last_choice, q1, q2 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
     state = state_row["state"] if state_row else None
