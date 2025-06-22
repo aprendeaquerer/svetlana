@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
-from chatgpt_wrapper import ChatGPT
+from databases import Database
 from pydantic import BaseModel
 import uuid
 from passlib.context import CryptContext
