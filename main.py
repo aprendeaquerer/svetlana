@@ -187,6 +187,9 @@ class User(BaseModel):
 # Global chatbot instances for each user
 user_chatbots = {}
 
+# Initialize the main chatbot instance
+chatbot = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
+
 # Language-specific prompts for Eldric
 eldric_prompts = {
     "es": (
