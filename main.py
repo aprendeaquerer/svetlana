@@ -2,13 +2,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from databases import Database
+from chatgpt_wrapper import ChatGPT
 from pydantic import BaseModel
 import uuid
 from passlib.context import CryptContext
 import os
 from typing import Dict, List
 import re
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
