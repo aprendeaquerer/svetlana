@@ -13,6 +13,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
 
+# Initialize the main chatbot instance at the top-level scope
+chatbot = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
+
 # Keyword extraction function
 def extract_keywords(message: str, language: str = "es") -> List[str]:
     """
@@ -186,9 +189,6 @@ class User(BaseModel):
 
 # Global chatbot instances for each user
 user_chatbots = {}
-
-# Initialize the main chatbot instance
-chatbot = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
 
 # Language-specific prompts for Eldric
 eldric_prompts = {
