@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from databases import Database
+from fastapi.concurrency import run_in_threadpool
 from chatgpt_wrapper import ChatGPT
 from pydantic import BaseModel
 import uuid
@@ -467,7 +467,7 @@ async def chat_endpoint(msg: Message):
             # Initialize chatbot if no conversation exists
             chatbot.messages.append({"role": "system", "content": eldric_prompt})
         
-        response = chatbot.chat(message)
+        response = await run_in_threadpool(chatbot.chat, message)
 
     if msg.user_id != "invitado":
         conv_id_user = str(uuid.uuid4())
