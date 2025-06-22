@@ -14,7 +14,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
 
 # Keyword extraction function
-def extract_keywords(message: str) -> List[str]:
+def extract_keywords(message: str, language: str = "es") -> List[str]:
     """
     Extract relevant keywords from user message for attachment theory knowledge lookup.
     Uses rule-based extraction with common attachment theory terms and emotional keywords.
@@ -22,37 +22,54 @@ def extract_keywords(message: str) -> List[str]:
     # Convert to lowercase for matching
     message_lower = message.lower()
     
-    # Define attachment theory keywords and their variations
+    # Language-specific attachment theory keywords
     attachment_keywords = {
-        'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación'],
-        'avoidant': ['evitativo', 'evito', 'distancia', 'independiente', 'solo', 'espacio', 'alejado', 'frío', 'distante'],
-        'secure': ['seguro', 'confianza', 'equilibrio', 'cómodo', 'tranquilo', 'estable', 'sano'],
-        'disorganized': ['desorganizado', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
-        'relationship': ['relación', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
-        'communication': ['comunicación', 'hablar', 'expresar', 'decir', 'conversar'],
-        'conflict': ['conflicto', 'pelea', 'discusión', 'problema', 'disputa'],
-        'trust': ['confianza', 'confiar', 'seguro', 'seguridad'],
-        'emotions': ['emoción', 'sentir', 'sentimiento', 'triste', 'feliz', 'enojado', 'frustrado']
+        "es": {
+            'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación'],
+            'avoidant': ['evitativo', 'evito', 'distancia', 'independiente', 'solo', 'espacio', 'alejado', 'frío', 'distante'],
+            'secure': ['seguro', 'confianza', 'equilibrio', 'cómodo', 'tranquilo', 'estable', 'sano'],
+            'disorganized': ['desorganizado', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
+            'relationship': ['relación', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
+            'communication': ['comunicación', 'hablar', 'expresar', 'decir', 'conversar'],
+            'conflict': ['conflicto', 'pelea', 'discusión', 'problema', 'disputa'],
+            'trust': ['confianza', 'confiar', 'seguro', 'seguridad'],
+            'emotions': ['emoción', 'sentir', 'sentimiento', 'triste', 'feliz', 'enojado', 'frustrado']
+        },
+        "en": {
+            'anxious': ['anxious', 'anxiety', 'worried', 'fear', 'abandonment', 'rejection', 'insecure', 'need', 'confirmation'],
+            'avoidant': ['avoidant', 'avoid', 'distance', 'independent', 'alone', 'space', 'distant', 'cold', 'detached'],
+            'secure': ['secure', 'trust', 'balance', 'comfortable', 'calm', 'stable', 'healthy'],
+            'disorganized': ['disorganized', 'confused', 'contradictory', 'chaos', 'inconsistent'],
+            'relationship': ['relationship', 'partner', 'love', 'bond', 'connection', 'intimacy', 'closeness'],
+            'communication': ['communication', 'talk', 'express', 'say', 'converse'],
+            'conflict': ['conflict', 'fight', 'argument', 'problem', 'dispute'],
+            'trust': ['trust', 'trusting', 'secure', 'security'],
+            'emotions': ['emotion', 'feel', 'feeling', 'sad', 'happy', 'angry', 'frustrated']
+        },
+        "ru": {
+            'anxious': ['тревожный', 'тревога', 'беспокойный', 'страх', 'покинутость', 'отвержение', 'неуверенный', 'нужда', 'подтверждение'],
+            'avoidant': ['избегающий', 'избегать', 'дистанция', 'независимый', 'один', 'пространство', 'отдаленный', 'холодный', 'отстраненный'],
+            'secure': ['надежный', 'доверие', 'баланс', 'комфортный', 'спокойный', 'стабильный', 'здоровый'],
+            'disorganized': ['дезорганизованный', 'запутанный', 'противоречивый', 'хаос', 'непоследовательный'],
+            'relationship': ['отношения', 'партнер', 'любовь', 'связь', 'соединение', 'близость', 'интимность'],
+            'communication': ['общение', 'говорить', 'выражать', 'сказать', 'беседовать'],
+            'conflict': ['конфликт', 'ссора', 'спор', 'проблема', 'разногласие'],
+            'trust': ['доверие', 'доверять', 'надежный', 'безопасность'],
+            'emotions': ['эмоция', 'чувствовать', 'чувство', 'грустный', 'счастливый', 'злой', 'разочарованный']
+        }
     }
+    
+    # Get keywords for the specified language
+    lang_keywords = attachment_keywords.get(language, attachment_keywords["es"])
     
     # Extract keywords based on matches
     found_keywords = []
     
-    for category, keywords in attachment_keywords.items():
+    for category, keywords in lang_keywords.items():
         for keyword in keywords:
             if keyword in message_lower:
                 found_keywords.append(category)
                 break  # Only add category once
-    
-    # Add specific attachment style detection
-    if any(word in message_lower for word in ['ansioso', 'ansiedad', 'preocupado', 'miedo']):
-        found_keywords.append('anxious')
-    if any(word in message_lower for word in ['evito', 'distancia', 'independiente', 'solo']):
-        found_keywords.append('avoidant')
-    if any(word in message_lower for word in ['seguro', 'confianza', 'equilibrio']):
-        found_keywords.append('secure')
-    if any(word in message_lower for word in ['confundido', 'contradictorio', 'caos']):
-        found_keywords.append('disorganized')
     
     # Remove duplicates while preserving order
     unique_keywords = []
@@ -62,20 +79,23 @@ def extract_keywords(message: str) -> List[str]:
     
     return unique_keywords[:3]  # Return top 3 most relevant keywords
 
-async def get_relevant_knowledge(keywords: List[str]) -> str:
+async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> str:
     """
-    Query the eldric_knowledge table for relevant content based on keywords.
+    Query the language-specific eldric_knowledge table for relevant content based on keywords.
     Returns a formatted string with relevant knowledge chunks.
     """
     if not keywords:
         return ""
     
     try:
+        # Use language-specific table
+        table_name = f"eldric_knowledge_{language}"
+        
         # Build query to find knowledge chunks that match any of the keywords
         # Using ILIKE for case-insensitive matching
-        query = """
+        query = f"""
         SELECT content, tags 
-        FROM eldric_knowledge 
+        FROM {table_name} 
         WHERE """
         
         conditions = []
@@ -102,7 +122,7 @@ async def get_relevant_knowledge(keywords: List[str]) -> str:
         return knowledge_text
         
     except Exception as e:
-        print(f"Error querying knowledge database: {e}")
+        print(f"Error querying knowledge database for language {language}: {e}")
         return ""
 
 def inject_knowledge_into_prompt(base_prompt: str, knowledge: str) -> str:
@@ -147,6 +167,7 @@ app.add_middleware(
 class Message(BaseModel):
     user_id: str
     message: str
+    language: str = "es"  # Default to Spanish for backward compatibility
 
 class User(BaseModel):
     user_id: str
@@ -155,22 +176,60 @@ class User(BaseModel):
 # Global chatbot instances for each user
 user_chatbots = {}
 
-eldric_prompt = (
-    "Eres Eldric, un coach emocional cálido, empático, sabio y cercano. "
-    "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
-    "Intenta mantener las respuestas un poco mas cortas, mas simples. "
-    "Hablas en español neutro, sin tecnicismos innecesarios, usando un tono accesible pero profundo. "
-    "Escuchas activamente, haces preguntas reflexivas y das orientación emocional basada en el estilo de apego de cada persona. "
-    "Solo ofreces el test de estilos de apego cuando el usuario lo solicita explícitamente (diciendo 'saludo inicial', 'hacer test', 'quiero hacer el test', etc.). "
-    "En conversaciones normales, enfócate en acompañar emocionalmente sin mencionar el test a menos que el usuario lo pida. "
-    "Cuando el usuario dice 'saludo inicial', responde con una bienvenida estructurada: "
-    "una breve presentación tuya, una explicación sencilla de los estilos de apego y una invitación clara a realizar un test. "
-    "Utiliza saltos de línea dobles (\n\n) para separar los párrafos, y si haces preguntas con opciones, usa formato tipo:\n"
-    "a) opción uno\nb) opción dos\nc) opción tres\nd) opción cuatro. "
-    "No esperes más contexto: si el usuario escribe 'saludo inicial', tú simplemente inicias la experiencia sin pedir más. "
-    "Después del test, recomiéndale registrarse para guardar su progreso y acceder a más recursos. "
-    "Si el usuario no desea hacer el test, puedes acompañarlo igualmente desde sus emociones actuales."
-)
+# Language-specific prompts
+eldric_prompts = {
+    "es": (
+        "Eres Eldric, un coach emocional cálido, empático, sabio y cercano. "
+        "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
+        "Intenta mantener las respuestas un poco mas cortas, mas simples. "
+        "Hablas en español neutro, sin tecnicismos innecesarios, usando un tono accesible pero profundo. "
+        "Escuchas activamente, haces preguntas reflexivas y das orientación emocional basada en el estilo de apego de cada persona. "
+        "Solo ofreces el test de estilos de apego cuando el usuario lo solicita explícitamente (diciendo 'saludo inicial', 'hacer test', 'quiero hacer el test', etc.). "
+        "En conversaciones normales, enfócate en acompañar emocionalmente sin mencionar el test a menos que el usuario lo pida. "
+        "Cuando el usuario dice 'saludo inicial', responde con una bienvenida estructurada: "
+        "una breve presentación tuya, una explicación sencilla de los estilos de apego y una invitación clara a realizar un test. "
+        "Utiliza saltos de línea dobles (\n\n) para separar los párrafos, y si haces preguntas con opciones, usa formato tipo:\n"
+        "a) opción uno\nb) opción dos\nc) opción tres\nd) opción cuatro. "
+        "No esperes más contexto: si el usuario escribe 'saludo inicial', tú simplemente inicias la experiencia sin pedir más. "
+        "Después del test, recomiéndale registrarse para guardar su progreso y acceder a más recursos. "
+        "Si el usuario no desea hacer el test, puedes acompañarlo igualmente desde sus emociones actuales."
+    ),
+    "en": (
+        "You are Eldric, a warm, empathetic, wise, and approachable emotional coach. "
+        "You are an expert in attachment theory, relationship psychology, and emotional support. "
+        "Try to keep responses shorter and simpler. "
+        "You speak in neutral English, without unnecessary technical terms, using an accessible but profound tone. "
+        "You listen actively, ask reflective questions, and provide emotional guidance based on each person's attachment style. "
+        "You only offer the attachment style test when the user explicitly requests it (saying 'initial greeting', 'take test', 'I want to take the test', etc.). "
+        "In normal conversations, focus on emotional support without mentioning the test unless the user asks. "
+        "When the user says 'initial greeting', respond with a structured welcome: "
+        "a brief introduction of yourself, a simple explanation of attachment styles, and a clear invitation to take a test. "
+        "Use double line breaks (\n\n) to separate paragraphs, and if you ask questions with options, use format like:\n"
+        "a) option one\nb) option two\nc) option three\nd) option four. "
+        "Don't wait for more context: if the user writes 'initial greeting', you simply start the experience without asking for more. "
+        "After the test, recommend they register to save their progress and access more resources. "
+        "If the user doesn't want to take the test, you can accompany them from their current emotions."
+    ),
+    "ru": (
+        "Ты Элдрик, теплый, эмпатичный, мудрый и доступный эмоциональный коуч. "
+        "Ты эксперт в теории привязанности, психологии отношений и эмоциональной поддержке. "
+        "Старайся давать более короткие и простые ответы. "
+        "Ты говоришь на нейтральном русском языке, без ненужных технических терминов, используя доступный, но глубокий тон. "
+        "Ты активно слушаешь, задаешь рефлексивные вопросы и даешь эмоциональные рекомендации на основе стиля привязанности каждого человека. "
+        "Ты предлагаешь тест на стиль привязанности только когда пользователь явно просит об этом (говоря 'начальное приветствие', 'пройти тест', 'хочу пройти тест' и т.д.). "
+        "В обычных разговорах сосредоточься на эмоциональной поддержке, не упоминая тест, если пользователь не просит. "
+        "Когда пользователь говорит 'начальное приветствие', отвечай структурированным приветствием: "
+        "краткое представление себя, простое объяснение стилей привязанности и четкое приглашение пройти тест. "
+        "Используй двойные переносы строк (\n\n) для разделения абзацев, и если задаешь вопросы с вариантами, используй формат:\n"
+        "а) вариант один\nб) вариант два\nв) вариант три\nг) вариант четыре. "
+        "Не жди больше контекста: если пользователь пишет 'начальное приветствие', ты просто начинаешь опыт без просьбы о большем. "
+        "После теста порекомендуй зарегистрироваться, чтобы сохранить прогресс и получить доступ к большему количеству ресурсов. "
+        "Если пользователь не хочет проходить тест, ты можешь сопровождать его от текущих эмоций."
+    )
+}
+
+# Default prompt for backward compatibility
+eldric_prompt = eldric_prompts["es"]
 
 @app.on_event("startup")
 async def startup():
@@ -181,6 +240,7 @@ async def startup():
             user_id TEXT,
             role TEXT,
             content TEXT,
+            language TEXT DEFAULT 'es',
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -196,9 +256,23 @@ async def startup():
             state TEXT,
             last_choice TEXT,
             q1 TEXT,
-            q2 TEXT
+            q2 TEXT,
+            language TEXT DEFAULT 'es'
         )
     """)
+    
+    # Create language-specific knowledge tables
+    for lang in ["en", "es", "ru"]:
+        await database.execute(f"""
+            CREATE TABLE IF NOT EXISTS eldric_knowledge_{lang} (
+                id SERIAL PRIMARY KEY,
+                content TEXT NOT NULL,
+                tags TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+    
+    # Keep the original table for backward compatibility
     await database.execute("""
         CREATE TABLE IF NOT EXISTS eldric_knowledge (
             id SERIAL PRIMARY KEY,
@@ -236,6 +310,7 @@ async def login(user: User):
 async def chat_endpoint(msg: Message):
     user_id = msg.user_id
     message = msg.message.strip()
+    language = msg.language
 
     # Get or create user-specific chatbot instance
     if user_id not in user_chatbots:
@@ -259,6 +334,9 @@ async def chat_endpoint(msg: Message):
             result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
             print(f"[DEBUG] Created new state: {result}")
         return result
+
+    # Get language-specific prompt
+    eldric_prompt = eldric_prompts.get(language, eldric_prompts["es"])
 
     # Only reset chatbot for test flow or explicit commands, not for normal conversations
     if message.lower() in ["saludo inicial", "reiniciar", "reset", "empezar de nuevo", "nuevo test", "hacer test", "quiero hacer el test"]:
@@ -365,10 +443,10 @@ async def chat_endpoint(msg: Message):
         # await set_state(None, None, None, None)  # REMOVED: This was causing the greeting loop
         
         # Extract keywords and get relevant knowledge for non-test messages
-        keywords = extract_keywords(message)
+        keywords = extract_keywords(message, language)
         print(f"[DEBUG] Extracted keywords: {keywords}")
         
-        relevant_knowledge = await get_relevant_knowledge(keywords)
+        relevant_knowledge = await get_relevant_knowledge(keywords, language)
         print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
         
         # For normal conversations, preserve context but inject knowledge if needed
@@ -395,12 +473,12 @@ async def chat_endpoint(msg: Message):
         conv_id_user = str(uuid.uuid4())
         conv_id_bot = str(uuid.uuid4())
         await database.execute(
-            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
-            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message}
+            "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
+            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message, "language": language}
         )
         await database.execute(
-            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
-            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
+            "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
+            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response, "language": language}
         )
 
     print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
