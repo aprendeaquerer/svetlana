@@ -348,7 +348,7 @@ async def chat_endpoint(msg: Message):
     chatbot.messages.append({"role": "system", "content": current_prompt})
 
     # Test flow logic
-    if state is None or message.lower() == "saludo inicial":
+    if state is None or message.lower() in ["saludo inicial", "initial greeting", "????????? ???????????"]:
         await set_state("greeting", None, None, None)
         
         # Language-specific greeting responses
