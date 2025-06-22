@@ -21,6 +21,12 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
     """
     Extract relevant keywords from user message for attachment theory knowledge lookup.
     Uses rule-based extraction with common attachment theory terms and emotional keywords.
+    # Add language column to existing conversations table if it doesn't exist
+    try:
+        await database.execute("ALTER TABLE conversations ADD COLUMN language TEXT DEFAULT 'es'")
+    except Exception:
+        # Column already exists, ignore error
+        pass
     """
     # Convert to lowercase for matching
     message_lower = message.lower()
@@ -594,12 +600,12 @@ async def chat_endpoint(msg: Message):
         conv_id_user = str(uuid.uuid4())
         conv_id_bot = str(uuid.uuid4())
         await database.execute(
-            "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
-            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message, "language": msg.language}
+            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
+            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message}
         )
         await database.execute(
-            "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
-            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response, "language": msg.language}
+            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
+            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
         )
 
     print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
