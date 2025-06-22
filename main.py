@@ -81,15 +81,20 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
 
 async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> str:
     """
-    Query the language-specific eldric_knowledge table for relevant content based on keywords.
+    Query the appropriate eldric_knowledge table for relevant content based on keywords and language.
     Returns a formatted string with relevant knowledge chunks.
     """
     if not keywords:
         return ""
     
     try:
-        # Use language-specific table
-        table_name = f"eldric_knowledge_{language}"
+        # Determine which table to query based on language
+        if language == "ru":
+            table_name = "eldric_knowledge_ru"
+        elif language == "en":
+            table_name = "eldric_knowledge"
+        else:  # Default to Spanish
+            table_name = "eldric_knowledge_es"
         
         # Build query to find knowledge chunks that match any of the keywords
         # Using ILIKE for case-insensitive matching
@@ -114,8 +119,14 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> s
         if not rows:
             return ""
         
-        # Format the knowledge chunks
-        knowledge_text = "\n\nConocimiento relevante para esta conversación:\n"
+        # Format the knowledge chunks based on language
+        if language == "ru":
+            knowledge_text = "\n\nРелевантные знания для этой беседы:\n"
+        elif language == "en":
+            knowledge_text = "\n\nRelevant knowledge for this conversation:\n"
+        else:  # Spanish
+            knowledge_text = "\n\nConocimiento relevante para esta conversación:\n"
+            
         for i, row in enumerate(rows, 1):
             knowledge_text += f"{i}. {row['content']}\n"
         
@@ -167,7 +178,7 @@ app.add_middleware(
 class Message(BaseModel):
     user_id: str
     message: str
-    language: str = "es"  # Default to Spanish for backward compatibility
+    language: str = "es"  # Default to Spanish
 
 class User(BaseModel):
     user_id: str
@@ -176,16 +187,14 @@ class User(BaseModel):
 # Global chatbot instances for each user
 user_chatbots = {}
 
-# Language-specific prompts
+# Language-specific prompts for Eldric
 eldric_prompts = {
     "es": (
         "Eres Eldric, un coach emocional cálido, empático, sabio y cercano. "
         "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
-        "Intenta mantener las respuestas un poco mas cortas, mas simples. "
+        "Intenta mantener las respuestas un poco mas cortas, mas simples"
         "Hablas en español neutro, sin tecnicismos innecesarios, usando un tono accesible pero profundo. "
         "Escuchas activamente, haces preguntas reflexivas y das orientación emocional basada en el estilo de apego de cada persona. "
-        "Solo ofreces el test de estilos de apego cuando el usuario lo solicita explícitamente (diciendo 'saludo inicial', 'hacer test', 'quiero hacer el test', etc.). "
-        "En conversaciones normales, enfócate en acompañar emocionalmente sin mencionar el test a menos que el usuario lo pida. "
         "Cuando el usuario dice 'saludo inicial', responde con una bienvenida estructurada: "
         "una breve presentación tuya, una explicación sencilla de los estilos de apego y una invitación clara a realizar un test. "
         "Utiliza saltos de línea dobles (\n\n) para separar los párrafos, y si haces preguntas con opciones, usa formato tipo:\n"
@@ -195,40 +204,36 @@ eldric_prompts = {
         "Si el usuario no desea hacer el test, puedes acompañarlo igualmente desde sus emociones actuales."
     ),
     "en": (
-        "You are Eldric, a warm, empathetic, wise, and approachable emotional coach. "
-        "You are an expert in attachment theory, relationship psychology, and emotional support. "
-        "Try to keep responses shorter and simpler. "
-        "You speak in neutral English, without unnecessary technical terms, using an accessible but profound tone. "
+        "You are Eldric, a warm, empathetic, wise, and close emotional coach. "
+        "You are an expert in attachment theory, relationship psychology, and emotional accompaniment. "
+        "Try to keep responses a bit shorter and simpler. "
+        "You speak in neutral English, without unnecessary technical terms, using an accessible but deep tone. "
         "You listen actively, ask reflective questions, and provide emotional guidance based on each person's attachment style. "
-        "You only offer the attachment style test when the user explicitly requests it (saying 'initial greeting', 'take test', 'I want to take the test', etc.). "
-        "In normal conversations, focus on emotional support without mentioning the test unless the user asks. "
         "When the user says 'initial greeting', respond with a structured welcome: "
         "a brief introduction of yourself, a simple explanation of attachment styles, and a clear invitation to take a test. "
         "Use double line breaks (\n\n) to separate paragraphs, and if you ask questions with options, use format like:\n"
         "a) option one\nb) option two\nc) option three\nd) option four. "
         "Don't wait for more context: if the user writes 'initial greeting', you simply start the experience without asking for more. "
-        "After the test, recommend they register to save their progress and access more resources. "
+        "After the test, recommend them to register to save their progress and access more resources. "
         "If the user doesn't want to take the test, you can accompany them from their current emotions."
     ),
     "ru": (
-        "Ты Элдрик, теплый, эмпатичный, мудрый и доступный эмоциональный коуч. "
-        "Ты эксперт в теории привязанности, психологии отношений и эмоциональной поддержке. "
-        "Старайся давать более короткие и простые ответы. "
+        "Ты Элдрик, теплый, эмпатичный, мудрый и близкий эмоциональный коуч. "
+        "Ты эксперт в теории привязанности, психологии отношений и эмоциональном сопровождении. "
+        "Старайся делать ответы немного короче и проще. "
         "Ты говоришь на нейтральном русском языке, без ненужных технических терминов, используя доступный, но глубокий тон. "
-        "Ты активно слушаешь, задаешь рефлексивные вопросы и даешь эмоциональные рекомендации на основе стиля привязанности каждого человека. "
-        "Ты предлагаешь тест на стиль привязанности только когда пользователь явно просит об этом (говоря 'начальное приветствие', 'пройти тест', 'хочу пройти тест' и т.д.). "
-        "В обычных разговорах сосредоточься на эмоциональной поддержке, не упоминая тест, если пользователь не просит. "
+        "Ты активно слушаешь, задаешь рефлексивные вопросы и даешь эмоциональное руководство на основе стиля привязанности каждого человека. "
         "Когда пользователь говорит 'начальное приветствие', отвечай структурированным приветствием: "
         "краткое представление себя, простое объяснение стилей привязанности и четкое приглашение пройти тест. "
         "Используй двойные переносы строк (\n\n) для разделения абзацев, и если задаешь вопросы с вариантами, используй формат:\n"
         "а) вариант один\nб) вариант два\nв) вариант три\nг) вариант четыре. "
         "Не жди больше контекста: если пользователь пишет 'начальное приветствие', ты просто начинаешь опыт без просьбы о большем. "
         "После теста порекомендуй зарегистрироваться, чтобы сохранить прогресс и получить доступ к большему количеству ресурсов. "
-        "Если пользователь не хочет проходить тест, ты можешь сопровождать его от текущих эмоций."
+        "Если пользователь не хочет проходить тест, ты можешь сопровождать его от его текущих эмоций."
     )
 }
 
-# Default prompt for backward compatibility
+# Default to Spanish prompt
 eldric_prompt = eldric_prompts["es"]
 
 @app.on_event("startup")
@@ -310,14 +315,7 @@ async def login(user: User):
 async def chat_endpoint(msg: Message):
     user_id = msg.user_id
     message = msg.message.strip()
-    language = msg.language
 
-    # Get or create user-specific chatbot instance
-    if user_id not in user_chatbots:
-        user_chatbots[user_id] = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
-    
-    chatbot = user_chatbots[user_id]
-    
     # Get or initialize test state
     state_row = await database.fetch_one("SELECT state, last_choice, q1, q2 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
     state = state_row["state"] if state_row else None
@@ -335,137 +333,257 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Created new state: {result}")
         return result
 
-    # Get language-specific prompt
-    eldric_prompt = eldric_prompts.get(language, eldric_prompts["es"])
-
-    # Only reset chatbot for test flow or explicit commands, not for normal conversations
-    if message.lower() in ["saludo inicial", "reiniciar", "reset", "empezar de nuevo", "nuevo test", "hacer test", "quiero hacer el test"]:
-        chatbot.reset()
-        chatbot.messages.append({"role": "system", "content": eldric_prompt})
+    chatbot.reset()
+    # Use language-specific prompt
+    current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
+    chatbot.messages.append({"role": "system", "content": current_prompt})
 
     # Test flow logic
-    if message.lower() == "saludo inicial":
+    if state is None or message.lower() == "saludo inicial":
         await set_state("greeting", None, None, None)
-        response = (
-            "<p><strong>Hola, soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.</p>"
-            "<p>En psicología del apego, solemos hablar de cuatro estilos: <strong>seguro, ansioso, evitativo y desorganizado</strong>. Cada uno influye en cómo te vinculas emocionalmente.</p>"
-            "<p>Para comenzar, ¿quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
-            "<ul>"
-            "<li>a) Sí, quiero entender mi forma de querer.</li>"
-            "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
-            "<li>c) Cuentame mas sobre el apego.</li>"
-            "</ul>"
-        )
-    elif message.lower() in ["reiniciar", "reset", "empezar de nuevo", "nuevo test", "hacer test", "quiero hacer el test"]:
-        # Explicit test request
-        await set_state("greeting", None, None, None)
-        response = (
-            "<p><strong>Perfecto, empecemos con el test.</strong></p>"
-            "<p>¿Quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
-            "<ul>"
-            "<li>a) Sí, quiero entender mi forma de querer.</li>"
-            "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
-            "<li>c) Cuentame mas sobre el apego.</li>"
-            "</ul>"
-        )
-    elif state is None and any(greeting in message.lower() for greeting in ["hola", "buenos días", "buenas", "hey", "hi", "hello"]):
-        # Simple greeting for new users - don't start test flow
-        response = "<p><strong>¡Hola! Soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte en tu camino de autoconocimiento y crecimiento en las relaciones. ¿Cómo te sientes hoy?</p>"
+        
+        # Language-specific greeting responses
+        if msg.language == "en":
+            response = (
+                "<p><strong>Hello, I'm Eldric</strong>, your emotional coach. I'm here to help you understand yourself better through attachment theory.</p>"
+                "<p>In attachment psychology, we usually talk about four styles: <strong>secure, anxious, avoidant, and disorganized</strong>. Each one influences how you connect emotionally.</p>"
+                "<p>To start, would you like to take a small test that helps you discover your predominant style?</p>"
+                "<ul>"
+                "<li>a) Yes, I want to understand my way of loving.</li>"
+                "<li>b) I prefer to talk about how I feel now.</li>"
+                "<li>c) Tell me more about attachment.</li>"
+                "</ul>"
+            )
+        elif msg.language == "ru":
+            response = (
+                "<p><strong>Привет, я Элдрик</strong>, твой эмоциональный коуч. Я здесь, чтобы помочь тебе лучше понять себя через теорию привязанности.</p>"
+                "<p>В психологии привязанности мы обычно говорим о четырех стилях: <strong>безопасный, тревожный, избегающий и дезорганизованный</strong>. Каждый влияет на то, как ты эмоционально связываешься.</p>"
+                "<p>Для начала, хочешь пройти небольшой тест, который поможет тебе открыть свой преобладающий стиль?</p>"
+                "<ul>"
+                "<li>а) Да, я хочу понять свой способ любить.</li>"
+                "<li>б) Я предпочитаю поговорить о том, как я чувствую себя сейчас.</li>"
+                "<li>в) Расскажи мне больше о привязанности.</li>"
+                "</ul>"
+            )
+        else:  # Spanish (default)
+            response = (
+                "<p><strong>Hola, soy Eldric</strong>, tu coach emocional. Estoy aquí para acompañarte a entenderte mejor desde la teoría del apego.</p>"
+                "<p>En psicología del apego, solemos hablar de cuatro estilos: <strong>seguro, ansioso, evitativo y desorganizado</strong>. Cada uno influye en cómo te vinculas emocionalmente.</p>"
+                "<p>Para comenzar, ¿quieres hacer un pequeño test que te ayude a descubrir tu estilo predominante?</p>"
+                "<ul>"
+                "<li>a) Sí, quiero entender mi forma de querer.</li>"
+                "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
+                "<li>c) Cuentame mas sobre el apego.</li>"
+                "</ul>"
+            )
     elif state == "greeting" and message.upper() in ["A", "B", "C"]:
         if message.upper() == "A":
             await set_state("q1", None, None, None)
-            response = (
-                "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
-                "<ul>"
-                "<li>a) Me preocupo y pienso que algo está mal</li>"
-                "<li>b) Me enfado y me distancio</li>"
-                "<li>c) Entiendo que puede estar ocupada</li>"
-                "<li>d) Me siento confundido y no sé qué hacer</li>"
-                "</ul>"
-            )
+            if msg.language == "en":
+                response = (
+                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
+                    "<ul>"
+                    "<li>a) I worry and think something is wrong</li>"
+                    "<li>b) I get angry and distance myself</li>"
+                    "<li>c) I understand they might be busy</li>"
+                    "<li>d) I feel confused and don't know what to do</li>"
+                    "</ul>"
+                )
+            elif msg.language == "ru":
+                response = (
+                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
+                    "<ul>"
+                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
+                    "<li>б) Я злюсь и отдаляюсь</li>"
+                    "<li>в) Я понимаю, что она может быть занята</li>"
+                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
+                    "</ul>"
+                )
+            else:  # Spanish
+                response = (
+                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                    "<ul>"
+                    "<li>a) Me preocupo y pienso que algo está mal</li>"
+                    "<li>b) Me enfado y me distancio</li>"
+                    "<li>c) Entiendo que puede estar ocupada</li>"
+                    "<li>d) Me siento confundido y no sé qué hacer</li>"
+                    "</ul>"
+                )
         elif message.upper() == "B":
             await set_state(None, None, None, None)
-            response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
+            if msg.language == "en":
+                response = "<p>I understand, sometimes we need to talk about what we feel before taking tests. How do you feel today? Is there something specific you'd like to share or explore together?</p>"
+            elif msg.language == "ru":
+                response = "<p>Понимаю, иногда нам нужно поговорить о том, что мы чувствуем, прежде чем проходить тесты. Как ты себя чувствуешь сегодня? Есть ли что-то конкретное, что ты хотел бы поделиться или исследовать вместе?</p>"
+            else:  # Spanish
+                response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
         elif message.upper() == "C":
             await set_state(None, None, None, None)
-            response = (
-                "<p>¡Por supuesto! El apego es cómo aprendimos a relacionarnos desde que éramos bebés. Nuestros primeros vínculos con nuestros cuidadores nos enseñaron patrones que repetimos en nuestras relaciones adultas.</p>"
-                "<p>Los estilos de apego son:</p>"
-                "<ul>"
-                "<li><strong>Seguro:</strong> Te sientes cómodo con la intimidad y la independencia</li>"
-                "<li><strong>Ansioso:</strong> Buscas mucha cercanía y te preocupas por el rechazo</li>"
-                "<li><strong>Evitativo:</strong> Prefieres mantener distancia emocional</li>"
-                "<li><strong>Desorganizado:</strong> Tienes patrones contradictorios</li>"
-                "</ul>"
-                "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
-            )
+            if msg.language == "en":
+                response = (
+                    "<p>Of course! Attachment is how we learned to relate since we were babies. Our first bonds with our caregivers taught us patterns that we repeat in our adult relationships.</p>"
+                    "<p>Attachment styles are:</p>"
+                    "<ul>"
+                    "<li><strong>Secure:</strong> You feel comfortable with intimacy and independence</li>"
+                    "<li><strong>Anxious:</strong> You seek a lot of closeness and worry about rejection</li>"
+                    "<li><strong>Avoidant:</strong> You prefer to maintain emotional distance</li>"
+                    "<li><strong>Disorganized:</strong> You have contradictory patterns</li>"
+                    "</ul>"
+                    "<p>Would you like to take the test now or would you prefer to talk about something specific?</p>"
+                )
+            elif msg.language == "ru":
+                response = (
+                    "<p>Конечно! Привязанность - это то, как мы научились относиться друг к другу с тех пор, как были младенцами. Наши первые связи с опекунами научили нас паттернам, которые мы повторяем в наших взрослых отношениях.</p>"
+                    "<p>Стили привязанности:</p>"
+                    "<ul>"
+                    "<li><strong>Безопасный:</strong> Ты чувствуешь себя комфортно с близостью и независимостью</li>"
+                    "<li><strong>Тревожный:</strong> Ты ищешь много близости и беспокоишься об отвержении</li>"
+                    "<li><strong>Избегающий:</strong> Ты предпочитаешь поддерживать эмоциональную дистанцию</li>"
+                    "<li><strong>Дезорганизованный:</strong> У тебя противоречивые паттерны</li>"
+                    "</ul>"
+                    "<p>Хочешь пройти тест сейчас или предпочитаешь поговорить о чем-то конкретном?</p>"
+                )
+            else:  # Spanish
+                response = (
+                    "<p>¡Por supuesto! El apego es cómo aprendimos a relacionarnos desde que éramos bebés. Nuestros primeros vínculos con nuestros cuidadores nos enseñaron patrones que repetimos en nuestras relaciones adultas.</p>"
+                    "<p>Los estilos de apego son:</p>"
+                    "<ul>"
+                    "<li><strong>Seguro:</strong> Te sientes cómodo con la intimidad y la independencia</li>"
+                    "<li><strong>Ansioso:</strong> Buscas mucha cercanía y te preocupas por el rechazo</li>"
+                    "<li><strong>Evitativo:</strong> Prefieres mantener distancia emocional</li>"
+                    "<li><strong>Desorganizado:</strong> Tienes patrones contradictorios</li>"
+                    "</ul>"
+                    "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
+                )
     elif state == "q1" and message.upper() in ["A", "B", "C", "D"]:
         await set_state("q2", None, message.upper(), None)
-        response = (
-            "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
-            "<ul>"
-            "<li>a) Me siento excluido y me duele</li>"
-            "<li>b) Me parece bien, yo también necesito mi espacio</li>"
-            "<li>c) Me preocupa pero trato de entender</li>"
-            "<li>d) Me siento confundido sobre cómo reaccionar</li>"
-            "</ul>"
-        )
+        if msg.language == "en":
+            response = (
+                "<p><strong>Second question:</strong> How do you feel when your partner wants to spend time with friends or family without you?</p>"
+                "<ul>"
+                "<li>a) I feel excluded and it hurts</li>"
+                "<li>b) It's fine, I also need my space</li>"
+                "<li>c) I worry but try to understand</li>"
+                "<li>d) I feel confused about how to react</li>"
+                "</ul>"
+            )
+        elif msg.language == "ru":
+            response = (
+                "<p><strong>Второй вопрос:</strong> Как ты себя чувствуешь, когда твоя партнерша хочет провести время с друзьями или семьей без тебя?</p>"
+                "<ul>"
+                "<li>а) Я чувствую себя исключенным, и это больно</li>"
+                "<li>б) Это нормально, мне тоже нужно мое пространство</li>"
+                "<li>в) Я беспокоюсь, но стараюсь понять</li>"
+                "<li>г) Я чувствую себя растерянным о том, как реагировать</li>"
+                "</ul>"
+            )
+        else:  # Spanish
+            response = (
+                "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
+                "<ul>"
+                "<li>a) Me siento excluido y me duele</li>"
+                "<li>b) Me parece bien, yo también necesito mi espacio</li>"
+                "<li>c) Me preocupa pero trato de entender</li>"
+                "<li>d) Me siento confundido sobre cómo reaccionar</li>"
+                "</ul>"
+            )
     elif state == "q2" and message.upper() in ["A", "B", "C", "D"]:
         await set_state("q3", None, q1, message.upper())
-        response = (
-            "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
-            "<ul>"
-            "<li>a) Busco resolverlo inmediatamente</li>"
-            "<li>b) Necesito tiempo para procesar solo</li>"
-            "<li>c) Me paralizo y no sé qué hacer</li>"
-            "<li>d) Me alejo hasta que se calme</li>"
-            "</ul>"
-        )
+        if msg.language == "en":
+            response = (
+                "<p><strong>Third question:</strong> When there are conflicts in your relationship, what do you usually do?</p>"
+                "<ul>"
+                "<li>a) I seek to resolve it immediately</li>"
+                "<li>b) I need time to process alone</li>"
+                "<li>c) I freeze and don't know what to do</li>"
+                "<li>d) I distance myself until it calms down</li>"
+                "</ul>"
+            )
+        elif msg.language == "ru":
+            response = (
+                "<p><strong>Третий вопрос:</strong> Когда в твоих отношениях есть конфликты, что ты обычно делаешь?</p>"
+                "<ul>"
+                "<li>а) Я стремлюсь решить это немедленно</li>"
+                "<li>б) Мне нужно время, чтобы обработать это в одиночестве</li>"
+                "<li>в) Я замираю и не знаю, что делать</li>"
+                "<li>г) Я отдаляюсь, пока это не успокоится</li>"
+                "</ul>"
+            )
+        else:  # Spanish
+            response = (
+                "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
+                "<ul>"
+                "<li>a) Busco resolverlo inmediatamente</li>"
+                "<li>b) Necesito tiempo para procesar solo</li>"
+                "<li>c) Me paralizo y no sé qué hacer</li>"
+                "<li>d) Me alejo hasta que se calme</li>"
+                "</ul>"
+            )
     elif state == "q3" and message.upper() in ["A", "B", "C", "D"]:
         # Show result
         await set_state(None, message.upper(), q1, q2)
         q3 = message.upper()
-        if q3 == "A":
-            result = "ANSIOSO"
-            desc = "Buscas mucha cercanía y confirmación. Te preocupas por el rechazo o abandono."
-        elif q3 == "B":
-            result = "SEGURO"
-            desc = "Te sientes cómodo con la intimidad y la independencia. Manejas los conflictos de manera equilibrada."
-        elif q3 == "C":
-            result = "DESORGANIZADO"
-            desc = "Tienes patrones contradictorios en las relaciones. Puedes sentirte confundido sobre cómo reaccionar."
-        elif q3 == "D":
-            result = "EVITATIVO"
-            desc = "Prefieres mantener distancia emocional. Puedes alejarte durante conflictos."
-        response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
+        
+        # Language-specific results
+        if msg.language == "en":
+            if q3 == "A":
+                result = "ANXIOUS"
+                desc = "You seek a lot of closeness and confirmation. You worry about rejection or abandonment."
+            elif q3 == "B":
+                result = "SECURE"
+                desc = "You feel comfortable with intimacy and independence. You handle conflicts in a balanced way."
+            elif q3 == "C":
+                result = "DISORGANIZED"
+                desc = "You have contradictory patterns in relationships. You may feel confused about how to react."
+            elif q3 == "D":
+                result = "AVOIDANT"
+                desc = "You prefer to maintain emotional distance. You may distance yourself during conflicts."
+            response = f"<p><strong>Based on your answers, your predominant attachment style appears to be {result}.</strong></p><p>{desc}</p><p>Would you like to explore more about this style or help you work on specific areas?</p>"
+        elif msg.language == "ru":
+            if q3 == "A":
+                result = "ТРЕВОЖНЫЙ"
+                desc = "Ты ищешь много близости и подтверждения. Ты беспокоишься об отвержении или оставлении."
+            elif q3 == "B":
+                result = "БЕЗОПАСНЫЙ"
+                desc = "Ты чувствуешь себя комфортно с близостью и независимостью. Ты справляешься с конфликтами сбалансированно."
+            elif q3 == "C":
+                result = "ДЕЗОРГАНИЗОВАННЫЙ"
+                desc = "У тебя противоречивые паттерны в отношениях. Ты можешь чувствовать себя растерянным о том, как реагировать."
+            elif q3 == "D":
+                result = "ИЗБЕГАЮЩИЙ"
+                desc = "Ты предпочитаешь поддерживать эмоциональную дистанцию. Ты можешь отдаляться во время конфликтов."
+            response = f"<p><strong>Основываясь на твоих ответах, твой преобладающий стиль привязанности, похоже, {result}.</strong></p><p>{desc}</p><p>Хочешь исследовать больше об этом стиле или помочь тебе работать над конкретными областями?</p>"
+        else:  # Spanish
+            if q3 == "A":
+                result = "ANSIOSO"
+                desc = "Buscas mucha cercanía y confirmación. Te preocupas por el rechazo o abandono."
+            elif q3 == "B":
+                result = "SEGURO"
+                desc = "Te sientes cómodo con la intimidad y la independencia. Manejas los conflictos de manera equilibrada."
+            elif q3 == "C":
+                result = "DESORGANIZADO"
+                desc = "Tienes patrones contradictorios en las relaciones. Puedes sentirte confundido sobre cómo reaccionar."
+            elif q3 == "D":
+                result = "EVITATIVO"
+                desc = "Prefieres mantener distancia emocional. Puedes alejarte durante conflictos."
+            response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
     else:
         # Don't reset state for normal conversations - only reset when explicitly requested
         # await set_state(None, None, None, None)  # REMOVED: This was causing the greeting loop
         
         # Extract keywords and get relevant knowledge for non-test messages
-        keywords = extract_keywords(message, language)
+        keywords = extract_keywords(message, msg.language)
         print(f"[DEBUG] Extracted keywords: {keywords}")
         
-        relevant_knowledge = await get_relevant_knowledge(keywords, language)
+        relevant_knowledge = await get_relevant_knowledge(keywords, msg.language)
         print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
         
-        # For normal conversations, preserve context but inject knowledge if needed
-        if relevant_knowledge and not chatbot.messages:
-            # Only reset if no conversation history exists
-            chatbot.reset()
-            enhanced_prompt = inject_knowledge_into_prompt(eldric_prompt, relevant_knowledge)
-            chatbot.messages.append({"role": "system", "content": enhanced_prompt})
-        elif relevant_knowledge:
-            # Inject knowledge as a system message without resetting conversation
-            enhanced_prompt = inject_knowledge_into_prompt(eldric_prompt, relevant_knowledge)
-            # Update the system message with new knowledge
-            if chatbot.messages and chatbot.messages[0]["role"] == "system":
-                chatbot.messages[0]["content"] = enhanced_prompt
-            else:
-                chatbot.messages.insert(0, {"role": "system", "content": enhanced_prompt})
-        elif not chatbot.messages:
-            # Initialize chatbot if no conversation exists
-            chatbot.messages.append({"role": "system", "content": eldric_prompt})
+        # Inject knowledge into the prompt
+        enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge)
+        
+        # Reset chatbot and set enhanced prompt
+        chatbot.reset()
+        chatbot.messages.append({"role": "system", "content": enhanced_prompt})
         
         response = chatbot.chat(message)
 
@@ -474,11 +592,11 @@ async def chat_endpoint(msg: Message):
         conv_id_bot = str(uuid.uuid4())
         await database.execute(
             "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
-            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message, "language": language}
+            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message, "language": msg.language}
         )
         await database.execute(
             "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
-            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response, "language": language}
+            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response, "language": msg.language}
         )
 
     print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
