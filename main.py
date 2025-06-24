@@ -399,6 +399,11 @@ async def chat_endpoint(msg: Message):
     try:
         user_id = msg.user_id
         message = msg.message.strip()
+        
+        print(f"[DEBUG] === CHAT ENDPOINT START ===")
+        print(f"[DEBUG] user_id: {user_id}")
+        print(f"[DEBUG] message: '{message}'")
+        print(f"[DEBUG] language: {msg.language}")
 
         # Get or initialize test state
         try:
@@ -410,6 +415,12 @@ async def chat_endpoint(msg: Message):
             last_choice = state_row["last_choice"] if state_row else None
             q1 = state_row["q1"] if state_row else None
             q2 = state_row["q2"] if state_row else None
+            
+            print(f"[DEBUG] Database query result: {state_row}")
+            print(f"[DEBUG] Retrieved state: {state}")
+            print(f"[DEBUG] Retrieved last_choice: {last_choice}")
+            print(f"[DEBUG] Retrieved q1: {q1}")
+            print(f"[DEBUG] Retrieved q2: {q2}")
         except Exception as db_error:
             print(f"Database error in message endpoint: {db_error}")
             # Return a simple response if database fails
@@ -441,9 +452,14 @@ async def chat_endpoint(msg: Message):
         # Test flow logic
         test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
         
+        print(f"[DEBUG] === STATE EVALUATION START ===")
+        print(f"[DEBUG] Current state: {state}")
+        print(f"[DEBUG] Message: '{message}'")
+        print(f"[DEBUG] Message in test_triggers: {message.lower() in test_triggers}")
+        
         # Initial greeting ONLY for the very first message
         if state is None:
-            print("[DEBUG] Entered state is None (first message)")
+            print("[DEBUG] ENTERED: state is None (first message) - SHOULD SHOW INITIAL GREETING")
             await set_state("greeting", None, None, None)
             # Language-specific greeting responses
             if msg.language == "en":
@@ -483,6 +499,7 @@ async def chat_endpoint(msg: Message):
             return {"response": response}
         # Handle greeting choices (A, B, C)
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
+            print(f"[DEBUG] ENTERED: greeting state with choice {message.upper()}")
             print(f"[DEBUG] In greeting state, user chose: {message.upper()}")
             if message.upper() == "A":
                 # Start test
@@ -567,6 +584,7 @@ async def chat_endpoint(msg: Message):
                     )
         # Handle test restart requests during normal conversation
         elif state is None and message.lower() in test_triggers:
+            print(f"[DEBUG] ENTERED: test restart request (state is None and message in triggers)")
             await set_state("q1", None, None, None)
             if msg.language == "en":
                 response = (
@@ -600,6 +618,8 @@ async def chat_endpoint(msg: Message):
                 )
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
+            print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
+            print(f"[DEBUG] This should NOT happen for first message with 'saludo inicial'")
             # Extract keywords and get relevant knowledge for non-test messages
             keywords = extract_keywords(message, msg.language)
             print(f"[DEBUG] Message: '{message}'")
@@ -623,6 +643,7 @@ async def chat_endpoint(msg: Message):
 
         # Fallback for greeting state: prompt user to choose A, B, or C
         elif state == "greeting":
+            print(f"[DEBUG] ENTERED: fallback greeting state (user didn't choose A, B, or C)")
             print(f"[DEBUG] In greeting state, user sent: {message}")
             if msg.language == "en":
                 response = "Please choose one of the options: A, B, or C."
