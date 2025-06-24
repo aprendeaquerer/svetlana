@@ -462,41 +462,10 @@ async def chat_endpoint(msg: Message):
                     "<li>c) Cuentame mas sobre el apego.</li>"
                     "</ul>"
                 )
-        # Direct test start when user asks for test (not first message)
-        elif message.lower() in test_triggers:
-            await set_state("q1", None, None, None)
-            if msg.language == "en":
-                response = (
-                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
-                    "<ul>"
-                    "<li>a) I worry and think something is wrong</li>"
-                    "<li>b) I get angry and distance myself</li>"
-                    "<li>c) I understand they might be busy</li>"
-                    "<li>d) I feel confused and don't know what to do</li>"
-                    "</ul>"
-                )
-            elif msg.language == "ru":
-                response = (
-                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
-                    "<ul>"
-                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
-                    "<li>б) Я злюсь и отдаляюсь</li>"
-                    "<li>в) Я понимаю, что она может быть занята</li>"
-                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
-                    "</ul>"
-                )
-            else:  # Spanish
-                response = (
-                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
-                    "<ul>"
-                    "<li>a) Me preocupo y pienso que algo está mal</li>"
-                    "<li>b) Me enfado y me distancio</li>"
-                    "<li>c) Entiendo que puede estar ocupada</li>"
-                    "<li>d) Me siento confundido y no sé qué hacer</li>"
-                    "</ul>"
-                )
+        # Handle greeting choices (A, B, C)
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
             if message.upper() == "A":
+                # Start test
                 await set_state("q1", None, None, None)
                 if msg.language == "en":
                     response = (
@@ -529,6 +498,7 @@ async def chat_endpoint(msg: Message):
                         "</ul>"
                     )
             elif message.upper() == "B":
+                # Normal conversation about feelings
                 await set_state(None, None, None, None)
                 if msg.language == "en":
                     response = "<p>I understand, sometimes we need to talk about what we feel before taking tests. How do you feel today? Is there something specific you'd like to share or explore together?</p>"
@@ -537,6 +507,7 @@ async def chat_endpoint(msg: Message):
                 else:  # Spanish
                     response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
             elif message.upper() == "C":
+                # Normal conversation about attachment
                 await set_state(None, None, None, None)
                 if msg.language == "en":
                     response = (
@@ -574,6 +545,39 @@ async def chat_endpoint(msg: Message):
                         "</ul>"
                         "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
                     )
+        # Handle test restart requests during normal conversation
+        elif state is None and message.lower() in test_triggers:
+            await set_state("q1", None, None, None)
+            if msg.language == "en":
+                response = (
+                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
+                    "<ul>"
+                    "<li>a) I worry and think something is wrong</li>"
+                    "<li>b) I get angry and distance myself</li>"
+                    "<li>c) I understand they might be busy</li>"
+                    "<li>d) I feel confused and don't know what to do</li>"
+                    "</ul>"
+                )
+            elif msg.language == "ru":
+                response = (
+                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
+                    "<ul>"
+                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
+                    "<li>б) Я злюсь и отдаляюсь</li>"
+                    "<li>в) Я понимаю, что она может быть занята</li>"
+                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
+                    "</ul>"
+                )
+            else:  # Spanish
+                response = (
+                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                    "<ul>"
+                    "<li>a) Me preocupo y pienso que algo está mal</li>"
+                    "<li>b) Me enfado y me distancio</li>"
+                    "<li>c) Entiendo que puede estar ocupada</li>"
+                    "<li>d) Me siento confundido y no sé qué hacer</li>"
+                    "</ul>"
+                )
         elif state in ["q1", "q2", "q3"] and message.upper() not in ["A", "B", "C", "D"]:
             # User is in the middle of a test but sent a normal message
             if msg.language == "en":
