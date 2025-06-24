@@ -365,10 +365,10 @@ async def chat_endpoint(msg: Message):
             try:
                 print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}")
                 if state_row:
-                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "user_id": user_id})
+                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, language = :language WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "language": msg.language, "user_id": user_id})
                     print(f"[DEBUG] Updated existing state: {result}")
                 else:
-                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
+                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, language) VALUES (:user_id, :state, :choice, :q1, :q2, :language)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "language": msg.language})
                     print(f"[DEBUG] Created new state: {result}")
                 return result
             except Exception as e:
