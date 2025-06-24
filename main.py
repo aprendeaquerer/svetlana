@@ -33,7 +33,7 @@ else:
 def extract_keywords(message: str, language: str = "es") -> List[str]:
     """
     Extract relevant keywords from user message for attachment theory knowledge lookup.
-    Uses rule-based extraction with common attachment theory terms and emotional keywords.
+    Returns the actual keywords found, not just categories.
     """
     # Convert to lowercase for matching
     message_lower = message.lower()
@@ -78,14 +78,13 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
     # Get keywords for the specified language
     lang_keywords = attachment_keywords.get(language, attachment_keywords["es"])
     
-    # Extract keywords based on matches
+    # Extract actual keywords found in the message
     found_keywords = []
     
     for category, keywords in lang_keywords.items():
         for keyword in keywords:
             if keyword in message_lower:
-                found_keywords.append(category)
-                break  # Only add category once
+                found_keywords.append(keyword)  # Add the actual keyword, not the category
     
     # Remove duplicates while preserving order
     unique_keywords = []
@@ -93,11 +92,12 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
         if keyword not in unique_keywords:
             unique_keywords.append(keyword)
     
-    return unique_keywords[:3]  # Return top 3 most relevant keywords
+    return unique_keywords[:5]  # Return top 5 actual keywords found
 
-async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> str:
+async def get_relevant_knowledge(keywords: List[str], language: str = "es", user_id: str = None) -> str:
     """
     Query the appropriate eldric_knowledge table for relevant content based on keywords and language.
+    Avoids repeating content that has already been used for this user.
     Returns a formatted string with relevant knowledge chunks.
     """
     if not keywords:
@@ -116,10 +116,13 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> s
         else:  # Default to Spanish
             table_name = "eldric_knowledge_es"
         
+        # Get previously used content IDs for this user
+        used_ids = used_knowledge.get(user_id, set()) if user_id else set()
+        
         # Build query to find knowledge chunks that match any of the keywords
-        # Using ILIKE for case-insensitive matching
+        # Using ILIKE for case-insensitive matching and excluding used content
         query = f"""
-        SELECT content, tags 
+        SELECT id, content, tags 
         FROM {table_name} 
         WHERE """
         
@@ -131,13 +134,44 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> s
             values[f"tag_{i}"] = f"%{keyword}%"
         
         query += " OR ".join(conditions)
+        
+        # Exclude previously used content if we have a user_id
+        if user_id and used_ids:
+            query += " AND id NOT IN ("
+            for i, used_id in enumerate(used_ids):
+                if i > 0:
+                    query += ","
+                query += f":used_id_{i}"
+                values[f"used_id_{i}"] = used_id
+            query += ")"
+        
         query += " ORDER BY RANDOM() LIMIT 5"
         
         # Execute query
         rows = await database.fetch_all(query, values=values)
         
         if not rows:
+            # If no unused content found, reset used content for this user and try again
+            if user_id and used_ids:
+                used_knowledge[user_id] = set()
+                # Re-run the query without the exclusion
+                query = f"""
+                SELECT id, content, tags 
+                FROM {table_name} 
+                WHERE """
+                query += " OR ".join(conditions)
+                query += " ORDER BY RANDOM() LIMIT 5"
+                rows = await database.fetch_all(query, values=values)
+        
+        if not rows:
             return ""
+        
+        # Track used content IDs
+        if user_id:
+            if user_id not in used_knowledge:
+                used_knowledge[user_id] = set()
+            for row in rows:
+                used_knowledge[user_id].add(row['id'])
         
         # Format the knowledge chunks based on language
         if language == "ru":
@@ -206,6 +240,9 @@ class User(BaseModel):
 
 # Global chatbot instances for each user
 user_chatbots = {}
+
+# Track used knowledge content to avoid repetition
+used_knowledge = {}  # user_id -> set of used content IDs
 
 # Language-specific prompts for Eldric
 eldric_prompts = {
@@ -365,10 +402,10 @@ async def chat_endpoint(msg: Message):
             try:
                 print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}")
                 if state_row:
-                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, language = :language WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "language": msg.language, "user_id": user_id})
+                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "user_id": user_id})
                     print(f"[DEBUG] Updated existing state: {result}")
                 else:
-                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, language) VALUES (:user_id, :state, :choice, :q1, :q2, :language)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "language": msg.language})
+                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
                     print(f"[DEBUG] Created new state: {result}")
                 return result
             except Exception as e:
@@ -385,7 +422,9 @@ async def chat_endpoint(msg: Message):
         chatbot.messages.append({"role": "system", "content": current_prompt})
 
         # Test flow logic
-        if state is None or message.lower() in ["saludo inicial", "initial greeting", "????????? ???????????"]:
+        test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
+        
+        if state is None or message.lower() in test_triggers:
             await set_state("greeting", None, None, None)
             
             # Language-specific greeting responses
@@ -501,6 +540,177 @@ async def chat_endpoint(msg: Message):
                         "</ul>"
                         "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
                     )
+        elif state in ["q1", "q2", "q3"] and message.upper() not in ["A", "B", "C", "D"]:
+            # User is in the middle of a test but sent a normal message
+            if msg.language == "en":
+                response = (
+                    "<p>I see you're in the middle of the attachment test. Would you like to:</p>"
+                    "<ul>"
+                    "<li>a) Continue with the test</li>"
+                    "<li>b) Exit the test and have a normal conversation</li>"
+                    "<li>c) Start the test over</li>"
+                    "</ul>"
+                )
+            elif msg.language == "ru":
+                response = (
+                    "<p>Я вижу, что ты в середине теста на привязанность. Что ты хочешь сделать:</p>"
+                    "<ul>"
+                    "<li>а) Продолжить тест</li>"
+                    "<li>б) Выйти из теста и поговорить нормально</li>"
+                    "<li>в) Начать тест заново</li>"
+                    "</ul>"
+                )
+            else:  # Spanish
+                response = (
+                    "<p>Veo que estás en medio del test de apego. ¿Qué te gustaría hacer?</p>"
+                    "<ul>"
+                    "<li>a) Continuar con el test</li>"
+                    "<li>b) Salir del test y tener una conversación normal</li>"
+                    "<li>c) Empezar el test de nuevo</li>"
+                    "</ul>"
+                )
+            await set_state("test_choice", None, q1, q2)
+        elif state == "test_choice" and message.upper() in ["A", "B", "C"]:
+            if message.upper() == "A":
+                # Continue with the test
+                if q1 is None:
+                    await set_state("q1", None, None, None)
+                    if msg.language == "en":
+                        response = (
+                            "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
+                            "<ul>"
+                            "<li>a) I worry and think something is wrong</li>"
+                            "<li>b) I get angry and distance myself</li>"
+                            "<li>c) I understand they might be busy</li>"
+                            "<li>d) I feel confused and don't know what to do</li>"
+                            "</ul>"
+                        )
+                    elif msg.language == "ru":
+                        response = (
+                            "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
+                            "<ul>"
+                            "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
+                            "<li>б) Я злюсь и отдаляюсь</li>"
+                            "<li>в) Я понимаю, что она может быть занята</li>"
+                            "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
+                            "</ul>"
+                        )
+                    else:  # Spanish
+                        response = (
+                            "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                            "<ul>"
+                            "<li>a) Me preocupo y pienso que algo está mal</li>"
+                            "<li>b) Me enfado y me distancio</li>"
+                            "<li>c) Entiendo que puede estar ocupada</li>"
+                            "<li>d) Me siento confundido y no sé qué hacer</li>"
+                            "</ul>"
+                        )
+                elif q2 is None:
+                    await set_state("q2", None, q1, None)
+                    if msg.language == "en":
+                        response = (
+                            "<p><strong>Second question:</strong> How do you feel when your partner wants to spend time with friends or family without you?</p>"
+                            "<ul>"
+                            "<li>a) I feel excluded and it hurts</li>"
+                            "<li>b) It's fine, I also need my space</li>"
+                            "<li>c) I worry but try to understand</li>"
+                            "<li>d) I feel confused about how to react</li>"
+                            "</ul>"
+                        )
+                    elif msg.language == "ru":
+                        response = (
+                            "<p><strong>Второй вопрос:</strong> Как ты себя чувствуешь, когда твоя партнерша хочет провести время с друзьями или семьей без тебя?</p>"
+                            "<ul>"
+                            "<li>а) Я чувствую себя исключенным, и это больно</li>"
+                            "<li>б) Это нормально, мне тоже нужно мое пространство</li>"
+                            "<li>в) Я беспокоюсь, но стараюсь понять</li>"
+                            "<li>г) Я чувствую себя растерянным о том, как реагировать</li>"
+                            "</ul>"
+                        )
+                    else:  # Spanish
+                        response = (
+                            "<p><strong>Segunda pregunta:</strong> ¿Cómo te sientes cuando tu pareja quiere pasar tiempo con amigos o familia sin ti?</p>"
+                            "<ul>"
+                            "<li>a) Me siento excluido y me duele</li>"
+                            "<li>b) Me parece bien, yo también necesito mi espacio</li>"
+                            "<li>c) Me preocupa pero trato de entender</li>"
+                            "<li>d) Me siento confundido sobre cómo reaccionar</li>"
+                            "</ul>"
+                        )
+                else:
+                    await set_state("q3", None, q1, q2)
+                    if msg.language == "en":
+                        response = (
+                            "<p><strong>Third question:</strong> When there are conflicts in your relationship, what do you usually do?</p>"
+                            "<ul>"
+                            "<li>a) I seek to resolve it immediately</li>"
+                            "<li>b) I need time to process alone</li>"
+                            "<li>c) I freeze and don't know what to do</li>"
+                            "<li>d) I distance myself until it calms down</li>"
+                            "</ul>"
+                        )
+                    elif msg.language == "ru":
+                        response = (
+                            "<p><strong>Третий вопрос:</strong> Когда в твоих отношениях есть конфликты, что ты обычно делаешь?</p>"
+                            "<ul>"
+                            "<li>а) Я стремлюсь решить это немедленно</li>"
+                            "<li>б) Мне нужно время, чтобы обработать это в одиночестве</li>"
+                            "<li>в) Я замираю и не знаю, что делать</li>"
+                            "<li>г) Я отдаляюсь, пока это не успокоится</li>"
+                            "</ul>"
+                        )
+                    else:  # Spanish
+                        response = (
+                            "<p><strong>Tercera pregunta:</strong> Cuando hay conflictos en tu relación, ¿qué sueles hacer?</p>"
+                            "<ul>"
+                            "<li>a) Busco resolverlo inmediatamente</li>"
+                            "<li>b) Necesito tiempo para procesar solo</li>"
+                            "<li>c) Me paralizo y no sé qué hacer</li>"
+                            "<li>d) Me alejo hasta que se calme</li>"
+                            "</ul>"
+                        )
+            elif message.upper() == "B":
+                # Exit test and have normal conversation
+                await set_state(None, None, None, None)
+                if msg.language == "en":
+                    response = "<p>Sure! Let's have a normal conversation. What would you like to talk about?</p>"
+                elif msg.language == "ru":
+                    response = "<p>Конечно! Давайте поговорим нормально. О чем ты хотел бы поговорить?</p>"
+                else:  # Spanish
+                    response = "<p>¡Por supuesto! Tengamos una conversación normal. ¿De qué te gustaría hablar?</p>"
+            elif message.upper() == "C":
+                # Start test over
+                await set_state("q1", None, None, None)
+                if msg.language == "en":
+                    response = (
+                        "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
+                        "<ul>"
+                        "<li>a) I worry and think something is wrong</li>"
+                        "<li>b) I get angry and distance myself</li>"
+                        "<li>c) I understand they might be busy</li>"
+                        "<li>d) I feel confused and don't know what to do</li>"
+                        "</ul>"
+                    )
+                elif msg.language == "ru":
+                    response = (
+                        "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
+                        "<ul>"
+                        "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
+                        "<li>б) Я злюсь и отдаляюсь</li>"
+                        "<li>в) Я понимаю, что она может быть занята</li>"
+                        "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
+                        "</ul>"
+                    )
+                else:  # Spanish
+                    response = (
+                        "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                        "<ul>"
+                        "<li>a) Me preocupo y pienso que algo está mal</li>"
+                        "<li>b) Me enfado y me distancio</li>"
+                        "<li>c) Entiendo que puede estar ocupada</li>"
+                        "<li>d) Me siento confundido y no sé qué hacer</li>"
+                        "</ul>"
+                    )
         elif state == "q1" and message.upper() in ["A", "B", "C", "D"]:
             await set_state("q2", None, message.upper(), None)
             if msg.language == "en":
@@ -584,7 +794,7 @@ async def chat_endpoint(msg: Message):
                 elif q3 == "D":
                     result = "AVOIDANT"
                     desc = "You prefer to maintain emotional distance. You may distance yourself during conflicts."
-                response = f"<p><strong>Based on your answers, your predominant attachment style appears to be {result}.</strong></p><p>{desc}</p><p>Would you like to explore more about this style or help you work on specific areas?</p>"
+                response = f"<p><strong>Based on your answers, your predominant attachment style appears to be {result}.</strong></p><p>{desc}</p><p>Would you like to explore more about this style or help you work on specific areas?</p><p><strong>💡 Tip:</strong> Consider registering with your email to save your progress and access more personalized resources!</p>"
             elif msg.language == "ru":
                 if q3 == "A":
                     result = "ТРЕВОЖНЫЙ"
@@ -598,7 +808,7 @@ async def chat_endpoint(msg: Message):
                 elif q3 == "D":
                     result = "ИЗБЕГАЮЩИЙ"
                     desc = "Ты предпочитаешь поддерживать эмоциональную дистанцию. Ты можешь отдаляться во время конфликтов."
-                response = f"<p><strong>Основываясь на твоих ответах, твой преобладающий стиль привязанности, похоже, {result}.</strong></p><p>{desc}</p><p>Хочешь исследовать больше об этом стиле или помочь тебе работать над конкретными областями?</p>"
+                response = f"<p><strong>Основываясь на твоих ответах, твой преобладающий стиль привязанности, похоже, {result}.</strong></p><p>{desc}</p><p>Хочешь исследовать больше об этом стиле или помочь тебе работать над конкретными областями?</p><p><strong>💡 Совет:</strong> Рассмотри возможность регистрации с вашим email, чтобы сохранить прогресс и получить доступ к более персонализированным ресурсам!</p>"
             else:  # Spanish
                 if q3 == "A":
                     result = "ANSIOSO"
@@ -612,7 +822,7 @@ async def chat_endpoint(msg: Message):
                 elif q3 == "D":
                     result = "EVITATIVO"
                     desc = "Prefieres mantener distancia emocional. Puedes alejarte durante conflictos."
-                response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p>"
+                response = f"<p><strong>Basándome en tus respuestas, tu estilo de apego predominante parece ser {result}.</strong></p><p>{desc}</p><p>¿Te gustaría que exploremos más sobre este estilo o que te ayude a trabajar en áreas específicas?</p><p><strong>💡 Consejo:</strong> ¡Considera registrarte con tu email para guardar tu progreso y acceder a recursos más personalizados!</p>"
         else:
             # Don't reset state for normal conversations - only reset when explicitly requested
             # await set_state(None, None, None, None)  # REMOVED: This was causing the greeting loop
@@ -621,7 +831,7 @@ async def chat_endpoint(msg: Message):
             keywords = extract_keywords(message, msg.language)
             print(f"[DEBUG] Extracted keywords: {keywords}")
             
-            relevant_knowledge = await get_relevant_knowledge(keywords, msg.language)
+            relevant_knowledge = await get_relevant_knowledge(keywords, msg.language, msg.user_id)
             print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
             
             # Inject knowledge into the prompt
