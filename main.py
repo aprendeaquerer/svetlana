@@ -41,11 +41,11 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
     # Language-specific attachment theory keywords
     attachment_keywords = {
         "es": {
-            'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación'],
+            'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación', 'confirmacion'],
             'avoidant': ['evitativo', 'evito', 'distancia', 'independiente', 'solo', 'espacio', 'alejado', 'frío', 'distante'],
             'secure': ['seguro', 'confianza', 'equilibrio', 'cómodo', 'tranquilo', 'estable', 'sano'],
             'disorganized': ['desorganizado', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
-            'relationship': ['relación', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
+            'relationship': ['relación', 'relaciones', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
             'communication': ['comunicación', 'hablar', 'expresar', 'decir', 'conversar'],
             'conflict': ['conflicto', 'pelea', 'discusión', 'problema', 'disputa'],
             'trust': ['confianza', 'confiar', 'seguro', 'seguridad'],
@@ -101,11 +101,15 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
     Returns a formatted string with relevant knowledge chunks.
     """
     if not keywords:
+        print("[DEBUG] No keywords provided, returning empty string")
         return ""
+    
+    print(f"[DEBUG] get_relevant_knowledge called with keywords: {keywords}, language: {language}, user_id: {user_id}")
     
     try:
         # Ensure database is connected
         if not database.is_connected:
+            print("[DEBUG] Database not connected, attempting to connect...")
             await database.connect()
         
         # Determine which table to query based on language
@@ -116,8 +120,11 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         else:  # Default to Spanish
             table_name = "eldric_knowledge_es"
         
+        print(f"[DEBUG] Using table: {table_name}")
+        
         # Get previously used content IDs for this user
         used_ids = used_knowledge.get(user_id, set()) if user_id else set()
+        print(f"[DEBUG] Previously used IDs: {used_ids}")
         
         # Build query to find knowledge chunks that match any of the keywords
         # Using ILIKE for case-insensitive matching and excluding used content
@@ -147,12 +154,18 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         
         query += " ORDER BY RANDOM() LIMIT 5"
         
+        print(f"[DEBUG] Query: {query}")
+        print(f"[DEBUG] Values: {values}")
+        
         # Execute query
         rows = await database.fetch_all(query, values=values)
+        print(f"[DEBUG] Query returned {len(rows)} rows")
         
         if not rows:
+            print("[DEBUG] No rows found, checking if we should reset used content...")
             # If no unused content found, reset used content for this user and try again
             if user_id and used_ids:
+                print("[DEBUG] Resetting used content and trying again...")
                 used_knowledge[user_id] = set()
                 # Re-run the query without the exclusion
                 query = f"""
@@ -162,8 +175,10 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
                 query += " OR ".join(conditions)
                 query += " ORDER BY RANDOM() LIMIT 5"
                 rows = await database.fetch_all(query, values=values)
+                print(f"[DEBUG] Second query returned {len(rows)} rows")
         
         if not rows:
+            print("[DEBUG] Still no rows found, returning empty string")
             return ""
         
         # Track used content IDs
@@ -184,10 +199,11 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         for i, row in enumerate(rows, 1):
             knowledge_text += f"{i}. {row['content']}\n"
         
+        print(f"[DEBUG] Final knowledge text length: {len(knowledge_text)}")
         return knowledge_text
         
     except Exception as e:
-        print(f"Error querying knowledge database for language {language}: {e}")
+        print(f"[DEBUG] Error in get_relevant_knowledge: {e}")
         return ""
 
 def inject_knowledge_into_prompt(base_prompt: str, knowledge: str) -> str:
@@ -867,15 +883,18 @@ async def chat_endpoint(msg: Message):
             
             # Extract keywords and get relevant knowledge for non-test messages
             keywords = extract_keywords(message, msg.language)
+            print(f"[DEBUG] Message: '{message}'")
+            print(f"[DEBUG] Language: {msg.language}")
             print(f"[DEBUG] Extracted keywords: {keywords}")
             
             relevant_knowledge = await get_relevant_knowledge(keywords, msg.language, msg.user_id)
             print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
+            print(f"[DEBUG] Knowledge content: {relevant_knowledge}")
             
             # Inject knowledge into the prompt
             enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge)
-            print(f"[DEBUG] Enhanced prompt: {enhanced_prompt[:500]}")
-            print(f"[DEBUG] Relevant knowledge: {relevant_knowledge[:500]}")
+            print(f"[DEBUG] Enhanced prompt length: {len(enhanced_prompt)}")
+            print(f"[DEBUG] Enhanced prompt preview: {enhanced_prompt[:500]}...")
             
             # Reset chatbot and set enhanced prompt
             chatbot.reset()
