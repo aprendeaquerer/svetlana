@@ -443,8 +443,8 @@ async def chat_endpoint(msg: Message):
         
         # Initial greeting ONLY for the very first message
         if state is None:
+            print("[DEBUG] Entered state is None (first message)")
             await set_state("greeting", None, None, None)
-            
             # Language-specific greeting responses
             if msg.language == "en":
                 response = (
@@ -479,8 +479,10 @@ async def chat_endpoint(msg: Message):
                     "<li>c) Cuentame mas sobre el apego.</li>"
                     "</ul>"
                 )
+            print(f"[DEBUG] Set initial greeting response: {response[:100]}...")
         # Handle greeting choices (A, B, C)
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
+            print(f"[DEBUG] In greeting state, user chose: {message.upper()}")
             if message.upper() == "A":
                 # Start test
                 await set_state("q1", None, None, None)
@@ -618,6 +620,16 @@ async def chat_endpoint(msg: Message):
             
             response = await run_in_threadpool(chatbot.chat, message)
 
+        # Fallback for greeting state: prompt user to choose A, B, or C
+        elif state == "greeting":
+            print(f"[DEBUG] In greeting state, user sent: {message}")
+            if msg.language == "en":
+                response = "Please choose one of the options: A, B, or C."
+            elif msg.language == "ru":
+                response = "Пожалуйста, выбери один из вариантов: А, Б или В."
+            else:  # Spanish
+                response = "Por favor, elige una de las opciones: A, B o C."
+
         if msg.user_id != "invitado":
             conv_id_user = str(uuid.uuid4())
             conv_id_bot = str(uuid.uuid4())
@@ -639,5 +651,5 @@ async def chat_endpoint(msg: Message):
             response = "Lo siento, ha ocurrido un error inesperado. Por favor, intenta de nuevo o formula tu pregunta de otra manera."
         return {"response": response}
     except Exception as e:
-        print(f"Error in message endpoint: {e}")
+        print(f"[DEBUG] Exception in chat_endpoint: {e}")
         return {"response": "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos momentos."}
