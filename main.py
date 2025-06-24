@@ -33,12 +33,12 @@ else:
 def extract_keywords(message: str, language: str = "es") -> List[str]:
     """
     Extract relevant keywords from user message for attachment theory knowledge lookup.
-    Returns the actual keywords found, not just categories.
+    Returns English keywords for database lookup since database tags are in English.
     """
     # Convert to lowercase for matching
     message_lower = message.lower()
     
-    # Language-specific attachment theory keywords
+    # Language-specific attachment theory keywords with English equivalents for database lookup
     attachment_keywords = {
         "es": {
             'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación', 'confirmacion'],
@@ -78,21 +78,23 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
     # Get keywords for the specified language
     lang_keywords = attachment_keywords.get(language, attachment_keywords["es"])
     
-    # Extract actual keywords found in the message
-    found_keywords = []
+    # Extract English category names (for database lookup) based on found keywords
+    found_categories = []
     
     for category, keywords in lang_keywords.items():
         for keyword in keywords:
             if keyword in message_lower:
-                found_keywords.append(keyword)  # Add the actual keyword, not the category
+                found_categories.append(category)  # Add the English category name
+                break  # Only add each category once
     
     # Remove duplicates while preserving order
-    unique_keywords = []
-    for keyword in found_keywords:
-        if keyword not in unique_keywords:
-            unique_keywords.append(keyword)
+    unique_categories = []
+    for category in found_categories:
+        if category not in unique_categories:
+            unique_categories.append(category)
     
-    return unique_keywords[:5]  # Return top 5 actual keywords found
+    print(f"[DEBUG] Found categories for database lookup: {unique_categories}")
+    return unique_categories[:5]  # Return top 5 English category names
 
 async def get_relevant_knowledge(keywords: List[str], language: str = "es", user_id: str = None) -> str:
     """
@@ -156,6 +158,13 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         
         print(f"[DEBUG] Query: {query}")
         print(f"[DEBUG] Values: {values}")
+        
+        # Debug: Let's see what's actually in the table
+        debug_query = f"SELECT id, content, tags FROM {table_name} LIMIT 3"
+        debug_rows = await database.fetch_all(debug_query)
+        print(f"[DEBUG] Sample data from {table_name}:")
+        for i, row in enumerate(debug_rows):
+            print(f"[DEBUG] Row {i}: id={row['id']}, tags='{row['tags']}', content='{row['content'][:100]}...'")
         
         # Execute query
         rows = await database.fetch_all(query, values=values)
