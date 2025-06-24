@@ -458,9 +458,14 @@ async def chat_endpoint(msg: Message):
         current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
         chatbot.messages.append({"role": "system", "content": current_prompt})
 
-        # Always handle 'saludo inicial' as a hard reset to greeting
-        if message.lower() == "saludo inicial":
-            print("[DEBUG] FORCE SHOW INITIAL GREETING (message == 'saludo inicial') - resetting state to 'greeting'")
+        # Always handle greeting triggers as a hard reset to greeting
+        greeting_triggers = {
+            "es": "saludo inicial",
+            "en": "initial greeting", 
+            "ru": "начальное приветствие"
+        }
+        if message.lower() == greeting_triggers.get(msg.language, "saludo inicial"):
+            print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             await set_state("greeting", None, None, None)
             if msg.language == "en":
                 response = (
@@ -497,9 +502,10 @@ async def chat_endpoint(msg: Message):
                 )
             print(f"[DEBUG] Set initial greeting response (forced): {response[:100]}...")
             return {"response": response}
-        # Always handle test triggers as a hard reset to test start
-        test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
-        if message.lower() in test_triggers and message.lower() != "saludo inicial":
+        # Always handle test triggers as a hard reset to test start (but not greeting triggers)
+        test_triggers = ["quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
+        greeting_triggers_list = list(greeting_triggers.values())
+        if message.lower() in test_triggers and message.lower() not in greeting_triggers_list:
             print("[DEBUG] FORCE START TEST (message in test_triggers)")
             await set_state("q1", None, None, None)
             if msg.language == "en":
