@@ -424,8 +424,8 @@ async def chat_endpoint(msg: Message):
         # Test flow logic
         test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
         
-        # Only trigger greeting for explicit test requests OR if this is the user's very first message
-        if message.lower() in test_triggers or state is None:
+        # Initial greeting ONLY for the very first message
+        if state is None:
             await set_state("greeting", None, None, None)
             
             # Language-specific greeting responses
@@ -460,6 +460,39 @@ async def chat_endpoint(msg: Message):
                     "<li>a) Sí, quiero entender mi forma de querer.</li>"
                     "<li>b) Prefiero hablar de cómo me sientes ahora.</li>"
                     "<li>c) Cuentame mas sobre el apego.</li>"
+                    "</ul>"
+                )
+        # Direct test start when user asks for test (not first message)
+        elif message.lower() in test_triggers:
+            await set_state("q1", None, None, None)
+            if msg.language == "en":
+                response = (
+                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
+                    "<ul>"
+                    "<li>a) I worry and think something is wrong</li>"
+                    "<li>b) I get angry and distance myself</li>"
+                    "<li>c) I understand they might be busy</li>"
+                    "<li>d) I feel confused and don't know what to do</li>"
+                    "</ul>"
+                )
+            elif msg.language == "ru":
+                response = (
+                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
+                    "<ul>"
+                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
+                    "<li>б) Я злюсь и отдаляюсь</li>"
+                    "<li>в) Я понимаю, что она может быть занята</li>"
+                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
+                    "</ul>"
+                )
+            else:  # Spanish
+                response = (
+                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                    "<ul>"
+                    "<li>a) Me preocupo y pienso que algo está mal</li>"
+                    "<li>b) Me enfado y me distancio</li>"
+                    "<li>c) Entiendo que puede estar ocupada</li>"
+                    "<li>d) Me siento confundido y no sé qué hacer</li>"
                     "</ul>"
                 )
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
