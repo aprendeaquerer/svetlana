@@ -449,19 +449,10 @@ async def chat_endpoint(msg: Message):
         current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
         chatbot.messages.append({"role": "system", "content": current_prompt})
 
-        # Test flow logic
-        test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
-        
-        print(f"[DEBUG] === STATE EVALUATION START ===")
-        print(f"[DEBUG] Current state: {state}")
-        print(f"[DEBUG] Message: '{message}'")
-        print(f"[DEBUG] Message in test_triggers: {message.lower() in test_triggers}")
-        
-        # Initial greeting ONLY for the very first message
-        if state is None:
-            print("[DEBUG] ENTERED: state is None (first message) - SHOULD SHOW INITIAL GREETING")
+        # Always handle 'saludo inicial' as a hard reset to greeting
+        if message.lower() == "saludo inicial":
+            print("[DEBUG] FORCE SHOW INITIAL GREETING (message == 'saludo inicial') - resetting state to 'greeting'")
             await set_state("greeting", None, None, None)
-            # Language-specific greeting responses
             if msg.language == "en":
                 response = (
                     "<p><strong>Hello, I'm Eldric</strong>, your emotional coach. I'm here to help you understand yourself better through attachment theory.</p>"
@@ -495,7 +486,44 @@ async def chat_endpoint(msg: Message):
                     "<li>c) Cuentame mas sobre el apego.</li>"
                     "</ul>"
                 )
-            print(f"[DEBUG] Set initial greeting response: {response[:100]}...")
+            print(f"[DEBUG] Set initial greeting response (forced): {response[:100]}...")
+            return {"response": response}
+        # Always handle test triggers as a hard reset to test start
+        test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
+        if message.lower() in test_triggers and message.lower() != "saludo inicial":
+            print("[DEBUG] FORCE START TEST (message in test_triggers)")
+            await set_state("q1", None, None, None)
+            if msg.language == "en":
+                response = (
+                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
+                    "<ul>"
+                    "<li>a) I worry and think something is wrong</li>"
+                    "<li>b) I get angry and distance myself</li>"
+                    "<li>c) I understand they might be busy</li>"
+                    "<li>d) I feel confused and don't know what to do</li>"
+                    "</ul>"
+                )
+            elif msg.language == "ru":
+                response = (
+                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
+                    "<ul>"
+                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
+                    "<li>б) Я злюсь и отдаляюсь</li>"
+                    "<li>в) Я понимаю, что она может быть занята</li>"
+                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
+                    "</ul>"
+                )
+            else:  # Spanish
+                response = (
+                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
+                    "<ul>"
+                    "<li>a) Me preocupo y pienso que algo está mal</li>"
+                    "<li>b) Me enfado y me distancio</li>"
+                    "<li>c) Entiendo que puede estar ocupada</li>"
+                    "<li>d) Me siento confundido y no sé qué hacer</li>"
+                    "</ul>"
+                )
+            print(f"[DEBUG] Set test start response (forced): {response[:100]}...")
             return {"response": response}
         # Handle greeting choices (A, B, C)
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
@@ -582,40 +610,6 @@ async def chat_endpoint(msg: Message):
                         "</ul>"
                         "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
                     )
-        # Handle test restart requests during normal conversation
-        elif state is None and message.lower() in test_triggers:
-            print(f"[DEBUG] ENTERED: test restart request (state is None and message in triggers)")
-            await set_state("q1", None, None, None)
-            if msg.language == "en":
-                response = (
-                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
-                    "<ul>"
-                    "<li>a) I worry and think something is wrong</li>"
-                    "<li>b) I get angry and distance myself</li>"
-                    "<li>c) I understand they might be busy</li>"
-                    "<li>d) I feel confused and don't know what to do</li>"
-                    "</ul>"
-                )
-            elif msg.language == "ru":
-                response = (
-                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
-                    "<ul>"
-                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
-                    "<li>б) Я злюсь и отдаляюсь</li>"
-                    "<li>в) Я понимаю, что она может быть занята</li>"
-                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
-                    "</ul>"
-                )
-            else:  # Spanish
-                response = (
-                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
-                    "<ul>"
-                    "<li>a) Me preocupo y pienso que algo está mal</li>"
-                    "<li>b) Me enfado y me distancio</li>"
-                    "<li>c) Entiendo que puede estar ocupada</li>"
-                    "<li>d) Me siento confundido y no sé qué hacer</li>"
-                    "</ul>"
-                )
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
