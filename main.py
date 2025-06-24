@@ -395,6 +395,7 @@ async def login(user: User):
 
 @app.post("/message")
 async def chat_endpoint(msg: Message):
+    response = None  # Always initialize response
     try:
         user_id = msg.user_id
         message = msg.message.strip()
@@ -634,6 +635,8 @@ async def chat_endpoint(msg: Message):
         print(f"[DEBUG] Response length: {len(response)}")
         print(f"[DEBUG] Current state: {state}, Message: '{message}', Response preview: {response[:100]}...")
 
+        if response is None:
+            response = "Lo siento, ha ocurrido un error inesperado. Por favor, intenta de nuevo o formula tu pregunta de otra manera."
         return {"response": response}
     except Exception as e:
         print(f"Error in message endpoint: {e}")
