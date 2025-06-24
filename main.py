@@ -14,7 +14,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
 
 # Initialize the main chatbot instance at the top-level scope
-chatbot = ChatGPT(api_key=os.getenv('CHATGPT_API_KEY'))
+api_key = os.getenv('CHATGPT_API_KEY')
+if not api_key:
+    raise ValueError("Missing CHATGPT_API_KEY environment variable. Please set it before running the application.")
+chatbot = ChatGPT(api_key=api_key)
 
 # Keyword extraction function
 def extract_keywords(message: str, language: str = "es") -> List[str]:
@@ -97,6 +100,10 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es") -> s
         return ""
     
     try:
+        # Ensure database is connected
+        if not database.is_connected:
+            await database.connect()
+        
         # Determine which table to query based on language
         if language == "ru":
             table_name = "eldric_knowledge_ru"
@@ -276,7 +283,7 @@ async def startup():
     """)
     
     # Create language-specific knowledge tables
-    for lang in ["en", "es", "ru"]:
+    for lang in ["es", "ru"]:
         await database.execute(f"""
             CREATE TABLE IF NOT EXISTS eldric_knowledge_{lang} (
                 id SERIAL PRIMARY KEY,
@@ -589,6 +596,8 @@ async def chat_endpoint(msg: Message):
         
         # Inject knowledge into the prompt
         enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge)
+        print(f"[DEBUG] Enhanced prompt: {enhanced_prompt[:500]}")
+        print(f"[DEBUG] Relevant knowledge: {relevant_knowledge[:500]}")
         
         # Reset chatbot and set enhanced prompt
         chatbot.reset()
@@ -600,12 +609,12 @@ async def chat_endpoint(msg: Message):
         conv_id_user = str(uuid.uuid4())
         conv_id_bot = str(uuid.uuid4())
         await database.execute(
-            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
-            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message}
+            "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
+            {"id": conv_id_user, "user_id": msg.user_id, "role": "user", "content": msg.message, "language": msg.language}
         )
         await database.execute(
-            "INSERT INTO conversations(id, user_id, role, content) VALUES (:id, :user_id, :role, :content)",
-            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response}
+            "INSERT INTO conversations(id, user_id, role, content, language) VALUES (:id, :user_id, :role, :content, :language)",
+            {"id": conv_id_bot, "user_id": msg.user_id, "role": "assistant", "content": response, "language": msg.language}
         )
 
     print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
