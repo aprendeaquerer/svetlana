@@ -480,6 +480,7 @@ async def chat_endpoint(msg: Message):
                     "</ul>"
                 )
             print(f"[DEBUG] Set initial greeting response: {response[:100]}...")
+            return {"response": response}
         # Handle greeting choices (A, B, C)
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
             print(f"[DEBUG] In greeting state, user chose: {message.upper()}")
