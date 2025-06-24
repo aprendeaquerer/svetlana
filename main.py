@@ -632,8 +632,8 @@ async def chat_endpoint(msg: Message):
 
         print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
         print(f"[DEBUG] State details: last_choice={last_choice}, q1={q1}, q2={q2}")
-        print(f"[DEBUG] Response length: {len(response)}")
-        print(f"[DEBUG] Current state: {state}, Message: '{message}', Response preview: {response[:100]}...")
+        print(f"[DEBUG] Response length: {len(response) if response else 0}")
+        print(f"[DEBUG] Current state: {state}, Message: '{message}', Response preview: {response[:100] if response else 'None'}...")
 
         if response is None:
             response = "Lo siento, ha ocurrido un error inesperado. Por favor, intenta de nuevo o formula tu pregunta de otra manera."
