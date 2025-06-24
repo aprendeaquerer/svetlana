@@ -424,7 +424,8 @@ async def chat_endpoint(msg: Message):
         # Test flow logic
         test_triggers = ["saludo inicial", "initial greeting", "????????? ???????????", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
         
-        if state is None or message.lower() in test_triggers:
+        # Only trigger greeting for explicit test requests OR if this is the user's very first message
+        if message.lower() in test_triggers or state is None:
             await set_state("greeting", None, None, None)
             
             # Language-specific greeting responses
