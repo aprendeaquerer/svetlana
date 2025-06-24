@@ -13,7 +13,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
 database = Database(DATABASE_URL)
 
-# Initialize the main chatbot instance at the top-level scope
+# Initialize the main chatbot instance at the top-level scope dsfsdfsdfsdfsdfsdfsdfsdfdsfdsfdsfsdfsddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddffffffffffffffffffffffffffsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf
 api_key = os.getenv('CHATGPT_API_KEY')
 if not api_key:
     raise ValueError("Missing CHATGPT_API_KEY environment variable. Please set it before running the application.")
