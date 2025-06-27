@@ -373,6 +373,19 @@ eldric_prompt = eldric_prompts["es"]
 async def startup():
     if database is not None:
         await database.connect()
+        
+        # Run migration to ensure test_state table has all required columns
+        try:
+            print("[DEBUG] Running database migration...")
+            from add_migration import migrate_database
+            migration_success = await migrate_database()
+            if migration_success:
+                print("[DEBUG] Database migration completed successfully")
+            else:
+                print("[DEBUG] Database migration failed, but continuing...")
+        except Exception as e:
+            print(f"[DEBUG] Migration error (continuing anyway): {e}")
+        
         await database.execute("""
             CREATE TABLE IF NOT EXISTS conversations (
                 id TEXT PRIMARY KEY,
