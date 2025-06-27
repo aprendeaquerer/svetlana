@@ -869,8 +869,8 @@ async def chat_endpoint(msg: Message):
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
                 
-                # Reset to conversation state after showing results
-                await set_state("conversation", None, None, None, None, None, None)
+                # Reset to conversation state after showing results, but keep the answers
+                await set_state("conversation", None, q1, q2, q3, q4, selected_option['text'])
                 return {"response": response}
             
             # Show next question
