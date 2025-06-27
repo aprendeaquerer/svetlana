@@ -858,6 +858,16 @@ async def chat_endpoint(msg: Message):
             predominant_style = calculate_attachment_style(scores)
             style_description = get_style_description(predominant_style, msg.language)
             
+            # Extract keywords and get relevant knowledge for post-test messages
+            keywords = extract_keywords(message, msg.language)
+            print(f"[DEBUG] Post-test message: '{message}'")
+            print(f"[DEBUG] Post-test language: {msg.language}")
+            print(f"[DEBUG] Post-test extracted keywords: {keywords}")
+            
+            relevant_knowledge = await get_relevant_knowledge(keywords, msg.language, msg.user_id)
+            print(f"[DEBUG] Post-test knowledge found: {len(relevant_knowledge)} characters")
+            print(f"[DEBUG] Post-test knowledge content: {relevant_knowledge}")
+            
             # Create a personalized prompt for post-test conversation
             if msg.language == "en":
                 post_test_prompt = (
@@ -893,9 +903,14 @@ async def chat_endpoint(msg: Message):
                     f"NO ofrezcas el test de nuevo - acaba de completarlo. Céntrate en explicar sus resultados y ayudarle a entender sus patrones."
                 )
             
-            # Reset chatbot with personalized prompt
+            # Inject knowledge into the post-test prompt
+            enhanced_post_test_prompt = inject_knowledge_into_prompt(post_test_prompt, relevant_knowledge)
+            print(f"[DEBUG] Enhanced post-test prompt length: {len(enhanced_post_test_prompt)}")
+            print(f"[DEBUG] Enhanced post-test prompt preview: {enhanced_post_test_prompt[:500]}...")
+            
+            # Reset chatbot with enhanced personalized prompt
             chatbot.reset()
-            chatbot.messages.append({"role": "system", "content": post_test_prompt})
+            chatbot.messages.append({"role": "system", "content": enhanced_post_test_prompt})
             
             response = await run_in_threadpool(chatbot.chat, message)
             
