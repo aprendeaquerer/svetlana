@@ -13,7 +13,45 @@ from passlib.context import CryptContext
 import os
 from typing import Dict, List
 import re
-from test_questions import TEST_QUESTIONS, calculate_attachment_style, get_style_description
+
+# Try to import test questions, fallback to simple version if import fails
+try:
+    from test_questions import TEST_QUESTIONS, calculate_attachment_style, get_style_description
+    print("Successfully imported test_questions module")
+except ImportError as e:
+    print(f"Warning: Could not import test_questions module: {e}")
+    print("Using fallback test questions")
+    
+    # Fallback test questions (simplified version)
+    TEST_QUESTIONS = {
+        "es": [
+            {
+                "question": "Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?",
+                "options": [
+                    {"text": "Me preocupo y pienso que algo está mal", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                    {"text": "Me enfado y me distancio", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                    {"text": "Entiendo que puede estar ocupada", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                    {"text": "Me siento confundido y no sé qué hacer", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+                ]
+            }
+        ]
+    }
+    
+    def calculate_attachment_style(scores):
+        max_score = max(scores.values())
+        predominant_styles = [style for style, score in scores.items() if score == max_score]
+        return predominant_styles[0] if predominant_styles else "secure"
+    
+    def get_style_description(style, language="es"):
+        descriptions = {
+            "es": {
+                "secure": "Seguro: Te sientes cómodo con la intimidad y la independencia.",
+                "anxious": "Ansioso: Buscas mucha cercanía y te preocupas por el rechazo.",
+                "avoidant": "Evitativo: Prefieres mantener distancia emocional.",
+                "disorganized": "Desorganizado: Tienes patrones contradictorios."
+            }
+        }
+        return descriptions.get(language, descriptions["es"]).get(style, "")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
