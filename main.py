@@ -808,7 +808,7 @@ async def chat_endpoint(msg: Message):
                     )
                 
                 # Reset to conversation state after showing results, but keep the answers
-                await set_state("conversation", None, q1, q2, q3, q4, selected_option['text'])
+                await set_state("post_test", None, q1, q2, q3, q4, selected_option['text'])
                 return {"response": response}
             
             # Show next question
@@ -829,6 +829,68 @@ async def chat_endpoint(msg: Message):
             else:
                 # This shouldn't happen, but just in case
                 response = "Error: No more questions available."
+        # Handle post-test conversation (user just finished test)
+        elif state == "post_test":
+            print(f"[DEBUG] ENTERED: post_test state - user just finished test")
+            print(f"[DEBUG] User message: '{message}'")
+            
+            # Get the user's test results to provide personalized responses
+            scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+            answers = [q1, q2, q3, q4, q5]
+            
+            questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
+            for i, answer in enumerate(answers):
+                if answer and i < len(questions):
+                    question_options = questions[i]['options']
+                    for option in question_options:
+                        if option['text'] == answer:
+                            for style, score in option['scores'].items():
+                                scores[style] += score
+                            break
+            
+            predominant_style = calculate_attachment_style(scores)
+            style_description = get_style_description(predominant_style, msg.language)
+            
+            # Create a personalized prompt for post-test conversation
+            if msg.language == "en":
+                post_test_prompt = (
+                    f"You are Eldric, an emotional coach. The user just completed an attachment style test. "
+                    f"Their predominant style is: {predominant_style.title()}. "
+                    f"Description: {style_description} "
+                    f"Their scores were: Secure {scores['secure']}, Anxious {scores['anxious']}, "
+                    f"Avoidant {scores['avoidant']}, Disorganized {scores['disorganized']}. "
+                    f"Answer their questions about their style, relationships, and provide personalized guidance. "
+                    f"DO NOT offer the test again - they just completed it. Focus on explaining their results and helping them understand their patterns."
+                )
+            elif msg.language == "ru":
+                post_test_prompt = (
+                    f"Ты Элдрик, эмоциональный коуч. Пользователь только что завершил тест на стиль привязанности. "
+                    f"Их преобладающий стиль: {predominant_style.title()}. "
+                    f"Описание: {style_description} "
+                    f"Их баллы: Безопасный {scores['secure']}, Тревожный {scores['anxious']}, "
+                    f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['disorganized']}. "
+                    f"Отвечай на их вопросы о стиле, отношениях и давай персонализированные советы. "
+                    f"НЕ предлагай тест снова - они только что его завершили. Сосредоточься на объяснении результатов и помощи в понимании их паттернов."
+                )
+            else:  # Spanish
+                post_test_prompt = (
+                    f"Eres Eldric, un coach emocional. El usuario acaba de completar un test de estilo de apego. "
+                    f"Su estilo predominante es: {predominant_style.title()}. "
+                    f"Descripción: {style_description} "
+                    f"Sus puntuaciones fueron: Seguro {scores['secure']}, Ansioso {scores['anxious']}, "
+                    f"Evitativo {scores['avoidant']}, Desorganizado {scores['disorganized']}. "
+                    f"Responde sus preguntas sobre su estilo, relaciones y proporciona orientación personalizada. "
+                    f"NO ofrezcas el test de nuevo - acaba de completarlo. Céntrate en explicar sus resultados y ayudarle a entender sus patrones."
+                )
+            
+            # Reset chatbot with personalized prompt
+            chatbot.reset()
+            chatbot.messages.append({"role": "system", "content": post_test_prompt})
+            
+            response = await run_in_threadpool(chatbot.chat, message)
+            
+            # After a few exchanges, transition to normal conversation
+            # For now, stay in post_test state to maintain context
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
