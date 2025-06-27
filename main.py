@@ -152,6 +152,7 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
     Query the appropriate eldric_knowledge table for relevant content based on keywords and language.
     Avoids repeating content that has already been used for this user.
     Returns a formatted string with relevant knowledge chunks.
+    Mention the source of 1 knowledge in each response, name of book and name of chapter.
     """
     if not keywords:
         print("[DEBUG] No keywords provided, returning empty string")
@@ -326,6 +327,7 @@ eldric_prompts = {
         "Eres Eldric, un coach emocional cálido, empático, sabio y cercano. "
         "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
         "Intenta mantener las respuestas un poco mas cortas, mas simples"
+        "Al final de cada respuesta, pregunta algo en concatenacion con la respuesta, algo que te ayude a entender mejor al usuario"
         "Hablas en español neutro, sin tecnicismos innecesarios, usando un tono accesible pero profundo. "
         "Escuchas activamente, haces preguntas reflexivas y das orientación emocional basada en el estilo de apego de cada persona. "
         "Cuando el usuario dice 'saludo inicial', responde con una bienvenida estructurada: "
