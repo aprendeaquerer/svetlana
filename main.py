@@ -484,19 +484,24 @@ async def login(user: User):
 async def chat_endpoint(msg: Message):
     response = None  # Always initialize response
     try:
+        print(f"[DEBUG] === CHAT ENDPOINT START ===")
+        print(f"[DEBUG] Message object received: {msg}")
+        
         user_id = msg.user_id
         message = msg.message.strip()
         
-        print(f"[DEBUG] === CHAT ENDPOINT START ===")
         print(f"[DEBUG] user_id: {user_id}")
         print(f"[DEBUG] message: '{message}'")
         print(f"[DEBUG] language: {msg.language}")
 
         # Get or initialize test state
         try:
+            print(f"[DEBUG] Database check - database is None: {database is None}")
             if database is None:
+                print("[DEBUG] Database is None, returning error")
                 return {"response": "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."}
             
+            print(f"[DEBUG] Attempting database query...")
             state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
             state = state_row["state"] if state_row else None
             last_choice = state_row["last_choice"] if state_row else None
@@ -506,6 +511,7 @@ async def chat_endpoint(msg: Message):
             q4 = state_row["q4"] if state_row else None
             q5 = state_row["q5"] if state_row else None
             
+            print(f"[DEBUG] Database query successful")
             print(f"[DEBUG] Database query result: {state_row}")
             print(f"[DEBUG] Retrieved state: {state}")
             print(f"[DEBUG] Retrieved last_choice: {last_choice}")
@@ -515,7 +521,10 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Retrieved q4: {q4}")
             print(f"[DEBUG] Retrieved q5: {q5}")
         except Exception as db_error:
-            print(f"Database error in message endpoint: {db_error}")
+            print(f"[DEBUG] Database error in message endpoint: {db_error}")
+            print(f"[DEBUG] Database error type: {type(db_error)}")
+            import traceback
+            print(f"[DEBUG] Database error traceback: {traceback.format_exc()}")
             # Return a simple response if database fails
             return {"response": "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos momentos."}
 
@@ -533,14 +542,18 @@ async def chat_endpoint(msg: Message):
                 print(f"Error setting state: {e}")
                 return None
 
+        print(f"[DEBUG] Chatbot check - chatbot is None: {chatbot is None}")
         # Check if chatbot is available
         if chatbot is None:
+            print("[DEBUG] Chatbot is None, returning error")
             return {"response": "Lo siento, el servicio de chat no está disponible en este momento. Por favor, intenta de nuevo más tarde."}
 
+        print(f"[DEBUG] Resetting chatbot...")
         chatbot.reset()
         # Use language-specific prompt
         current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
         chatbot.messages.append({"role": "system", "content": current_prompt})
+        print(f"[DEBUG] Chatbot reset and prompt set successfully")
 
         # Always handle greeting triggers as a hard reset to greeting
         greeting_triggers = {
@@ -548,7 +561,12 @@ async def chat_endpoint(msg: Message):
             "en": "initial greeting", 
             "ru": "начальное приветствие"
         }
+        print(f"[DEBUG] Checking greeting triggers...")
+        print(f"[DEBUG] Message lower: '{message.lower()}'")
+        print(f"[DEBUG] Expected trigger: '{greeting_triggers.get(msg.language, 'saludo inicial')}'")
+        
         if message.lower() == greeting_triggers.get(msg.language, "saludo inicial"):
+            print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             await set_state("greeting", None, None, None, None, None, None)
             if msg.language == "en":
