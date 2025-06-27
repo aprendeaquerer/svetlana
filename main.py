@@ -29,6 +29,185 @@ if not api_key:
 else:
     chatbot = ChatGPT(api_key=api_key)
 
+# Test questions and scoring system
+TEST_QUESTIONS = {
+    "es": [
+        {
+            "question": "Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?",
+            "options": [
+                {"text": "Me preocupo y pienso que algo está mal", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Me enfado y me distancio", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Entiendo que puede estar ocupada", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Me siento confundido y no sé qué hacer", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "¿Cómo te sientes cuando tu pareja quiere pasar mucho tiempo contigo?",
+            "options": [
+                {"text": "Me siento feliz y seguro", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Me siento abrumado y necesito espacio", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Me preocupa que se aburra de mí", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Me siento confundido entre querer cercanía y miedo", "scores": {"anxious": 1, "avoidant": 1, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "Cuando hay un conflicto en tu relación, ¿qué sueles hacer?",
+            "options": [
+                {"text": "Busco resolverlo hablando abiertamente", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Me alejo y necesito tiempo para pensar", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Me siento muy ansioso y busco resolverlo inmediatamente", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Me siento paralizado y no sé cómo actuar", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "¿Cómo te sientes con la intimidad emocional en tus relaciones?",
+            "options": [
+                {"text": "Me siento cómodo compartiendo mis sentimientos", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Me cuesta abrirme emocionalmente", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Necesito mucha confirmación de que me quieren", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "A veces quiero intimidad y a veces me asusta", "scores": {"anxious": 1, "avoidant": 1, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "¿Cómo te sientes cuando tu pareja tiene amigos del sexo opuesto?",
+            "options": [
+                {"text": "Me siento seguro y confío en ella", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Me siento celoso y preocupado", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Me da igual, prefiero mi independencia", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Me siento confundido entre confiar y desconfiar", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        }
+    ],
+    "en": [
+        {
+            "question": "When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?",
+            "options": [
+                {"text": "I worry and think something is wrong", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "I get angry and distance myself", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "I understand they might be busy", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "I feel confused and don't know what to do", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "How do you feel when your partner wants to spend a lot of time with you?",
+            "options": [
+                {"text": "I feel happy and secure", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "I feel overwhelmed and need space", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "I worry they'll get bored of me", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "I feel confused between wanting closeness and fear", "scores": {"anxious": 1, "avoidant": 1, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "When there's a conflict in your relationship, what do you usually do?",
+            "options": [
+                {"text": "I seek to resolve it by talking openly", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "I distance myself and need time to think", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "I feel very anxious and seek to resolve it immediately", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "I feel paralyzed and don't know how to act", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "How do you feel about emotional intimacy in your relationships?",
+            "options": [
+                {"text": "I feel comfortable sharing my feelings", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "I have difficulty opening up emotionally", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "I need a lot of confirmation that they love me", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Sometimes I want intimacy and sometimes it scares me", "scores": {"anxious": 1, "avoidant": 1, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "How do you feel when your partner has friends of the opposite sex?",
+            "options": [
+                {"text": "I feel secure and trust them", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "I feel jealous and worried", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "I don't care, I prefer my independence", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "I feel confused between trusting and distrusting", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        }
+    ],
+    "ru": [
+        {
+            "question": "Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?",
+            "options": [
+                {"text": "Я беспокоюсь и думаю, что что-то не так", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Я злюсь и отдаляюсь", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Я понимаю, что она может быть занята", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Я чувствую себя растерянным и не знаю, что делать", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "Как ты себя чувствуешь, когда твоя партнерша хочет проводить много времени с тобой?",
+            "options": [
+                {"text": "Я чувствую себя счастливым и безопасным", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Я чувствую себя перегруженным и нуждаюсь в пространстве", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Я беспокоюсь, что она устанет от меня", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Я чувствую себя растерянным между желанием близости и страхом", "scores": {"anxious": 1, "avoidant": 1, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "Когда в твоих отношениях есть конфликт, что ты обычно делаешь?",
+            "options": [
+                {"text": "Я ищу решение через открытый разговор", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Я отдаляюсь и нуждаюсь во времени подумать", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Я чувствую себя очень тревожным и ищу немедленного решения", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Я чувствую себя парализованным и не знаю, как действовать", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "Как ты себя чувствуешь с эмоциональной близостью в твоих отношениях?",
+            "options": [
+                {"text": "Я чувствую себя комфортно, делясь своими чувствами", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Мне трудно эмоционально открываться", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Мне нужно много подтверждений, что меня любят", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Иногда я хочу близости, а иногда это пугает меня", "scores": {"anxious": 1, "avoidant": 1, "secure": 0, "disorganized": 2}}
+            ]
+        },
+        {
+            "question": "Как ты себя чувствуешь, когда у твоей партнерши есть друзья противоположного пола?",
+            "options": [
+                {"text": "Я чувствую себя безопасно и доверяю ей", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
+                {"text": "Я чувствую себя ревнивым и обеспокоенным", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
+                {"text": "Мне все равно, я предпочитаю свою независимость", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
+                {"text": "Я чувствую себя растерянным между доверием и недоверием", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+            ]
+        }
+    ]
+}
+
+def calculate_attachment_style(scores):
+    """Calculate the predominant attachment style based on scores"""
+    max_score = max(scores.values())
+    predominant_styles = [style for style, score in scores.items() if score == max_score]
+    
+    if len(predominant_styles) > 1:
+        # If there's a tie, return the first one (could be enhanced with more logic)
+        return predominant_styles[0]
+    return predominant_styles[0]
+
+def get_style_description(style, language="es"):
+    """Get description for each attachment style"""
+    descriptions = {
+        "es": {
+            "secure": "Seguro: Te sientes cómodo con la intimidad y la independencia. Puedes mantener relaciones saludables y equilibradas.",
+            "anxious": "Ansioso: Buscas mucha cercanía y te preocupas por el rechazo. Necesitas confirmación constante de que te quieren.",
+            "avoidant": "Evitativo: Prefieres mantener distancia emocional. Te sientes más cómodo con la independencia que con la intimidad.",
+            "disorganized": "Desorganizado: Tienes patrones contradictorios. A veces buscas cercanía y a veces la evitas, sintiéndote confundido."
+        },
+        "en": {
+            "secure": "Secure: You feel comfortable with intimacy and independence. You can maintain healthy and balanced relationships.",
+            "anxious": "Anxious: You seek a lot of closeness and worry about rejection. You need constant confirmation that you are loved.",
+            "avoidant": "Avoidant: You prefer to maintain emotional distance. You feel more comfortable with independence than intimacy.",
+            "disorganized": "Disorganized: You have contradictory patterns. Sometimes you seek closeness and sometimes you avoid it, feeling confused."
+        },
+        "ru": {
+            "secure": "Безопасный: Ты чувствуешь себя комфортно с близостью и независимостью. Ты можешь поддерживать здоровые и сбалансированные отношения.",
+            "anxious": "Тревожный: Ты ищешь много близости и беспокоишься об отвержении. Тебе нужно постоянное подтверждение, что тебя любят.",
+            "avoidant": "Избегающий: Ты предпочитаешь поддерживать эмоциональную дистанцию. Ты чувствуешь себя более комфортно с независимостью, чем с близостью.",
+            "disorganized": "Дезорганизованный: У тебя противоречивые паттерны. Иногда ты ищешь близости, а иногда избегаешь её, чувствуя себя растерянным."
+        }
+    }
+    return descriptions.get(language, descriptions["es"]).get(style, "")
+
 # Keyword extraction function
 def extract_keywords(message: str, language: str = "es") -> List[str]:
     """
@@ -345,6 +524,9 @@ async def startup():
                 last_choice TEXT,
                 q1 TEXT,
                 q2 TEXT,
+                q3 TEXT,
+                q4 TEXT,
+                q5 TEXT,
                 language TEXT DEFAULT 'es'
             )
         """)
@@ -419,30 +601,36 @@ async def chat_endpoint(msg: Message):
             if database is None:
                 return {"response": "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."}
             
-            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
             state = state_row["state"] if state_row else None
             last_choice = state_row["last_choice"] if state_row else None
             q1 = state_row["q1"] if state_row else None
             q2 = state_row["q2"] if state_row else None
+            q3 = state_row["q3"] if state_row else None
+            q4 = state_row["q4"] if state_row else None
+            q5 = state_row["q5"] if state_row else None
             
             print(f"[DEBUG] Database query result: {state_row}")
             print(f"[DEBUG] Retrieved state: {state}")
             print(f"[DEBUG] Retrieved last_choice: {last_choice}")
             print(f"[DEBUG] Retrieved q1: {q1}")
             print(f"[DEBUG] Retrieved q2: {q2}")
+            print(f"[DEBUG] Retrieved q3: {q3}")
+            print(f"[DEBUG] Retrieved q4: {q4}")
+            print(f"[DEBUG] Retrieved q5: {q5}")
         except Exception as db_error:
             print(f"Database error in message endpoint: {db_error}")
             # Return a simple response if database fails
             return {"response": "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos momentos."}
 
-        async def set_state(new_state, choice=None, q1_val=None, q2_val=None):
+        async def set_state(new_state, choice=None, q1_val=None, q2_val=None, q3_val=None, q4_val=None, q5_val=None):
             try:
-                print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}")
+                print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}")
                 if state_row:
-                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "user_id": user_id})
+                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "user_id": user_id})
                     print(f"[DEBUG] Updated existing state: {result}")
                 else:
-                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2) VALUES (:user_id, :state, :choice, :q1, :q2)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val})
+                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val})
                     print(f"[DEBUG] Created new state: {result}")
                 return result
             except Exception as e:
@@ -466,7 +654,7 @@ async def chat_endpoint(msg: Message):
         }
         if message.lower() == greeting_triggers.get(msg.language, "saludo inicial"):
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
-            await set_state("greeting", None, None, None)
+            await set_state("greeting", None, None, None, None, None, None)
             if msg.language == "en":
                 response = (
                     "<p><strong>Hello, I'm Eldric</strong>, your emotional coach. I'm here to help you understand yourself better through attachment theory.</p>"
@@ -507,37 +695,21 @@ async def chat_endpoint(msg: Message):
         greeting_triggers_list = list(greeting_triggers.values())
         if message.lower() in test_triggers and message.lower() not in greeting_triggers_list:
             print("[DEBUG] FORCE START TEST (message in test_triggers)")
-            await set_state("q1", None, None, None)
+            await set_state("q1", None, None, None, None, None, None)
+            questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
+            question = questions[0]
+            
             if msg.language == "en":
-                response = (
-                    "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
-                    "<ul>"
-                    "<li>a) I worry and think something is wrong</li>"
-                    "<li>b) I get angry and distance myself</li>"
-                    "<li>c) I understand they might be busy</li>"
-                    "<li>d) I feel confused and don't know what to do</li>"
-                    "</ul>"
-                )
+                response = f"<p><strong>Question 1 of 5:</strong> {question['question']}</p><ul>"
             elif msg.language == "ru":
-                response = (
-                    "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
-                    "<ul>"
-                    "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
-                    "<li>б) Я злюсь и отдаляюсь</li>"
-                    "<li>в) Я понимаю, что она может быть занята</li>"
-                    "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
-                    "</ul>"
-                )
+                response = f"<p><strong>Вопрос 1 из 5:</strong> {question['question']}</p><ul>"
             else:  # Spanish
-                response = (
-                    "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
-                    "<ul>"
-                    "<li>a) Me preocupo y pienso que algo está mal</li>"
-                    "<li>b) Me enfado y me distancio</li>"
-                    "<li>c) Entiendo que puede estar ocupada</li>"
-                    "<li>d) Me siento confundido y no sé qué hacer</li>"
-                    "</ul>"
-                )
+                response = f"<p><strong>Pregunta 1 de 5:</strong> {question['question']}</p><ul>"
+            
+            for i, option in enumerate(question['options']):
+                response += f"<li>{chr(97+i)}) {option['text']}</li>"
+            response += "</ul>"
+            
             print(f"[DEBUG] Set test start response (forced): {response[:100]}...")
             return {"response": response}
         # Handle greeting choices (A, B, C)
@@ -546,40 +718,23 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] In greeting state, user chose: {message.upper()}")
             if message.upper() == "A":
                 # Start test
-                await set_state("q1", None, None, None)
+                await set_state("q1", None, None, None, None, None, None)
+                questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
+                question = questions[0]
+                
                 if msg.language == "en":
-                    response = (
-                        "<p><strong>First question:</strong> When you're in a relationship, how do you usually react when your partner doesn't respond to your messages immediately?</p>"
-                        "<ul>"
-                        "<li>a) I worry and think something is wrong</li>"
-                        "<li>b) I get angry and distance myself</li>"
-                        "<li>c) I understand they might be busy</li>"
-                        "<li>d) I feel confused and don't know what to do</li>"
-                        "</ul>"
-                    )
+                    response = f"<p><strong>Question 1 of 5:</strong> {question['question']}</p><ul>"
                 elif msg.language == "ru":
-                    response = (
-                        "<p><strong>Первый вопрос:</strong> Когда ты в отношениях, как ты обычно реагируешь, когда твоя партнерша не отвечает на твои сообщения сразу?</p>"
-                        "<ul>"
-                        "<li>а) Я беспокоюсь и думаю, что что-то не так</li>"
-                        "<li>б) Я злюсь и отдаляюсь</li>"
-                        "<li>в) Я понимаю, что она может быть занята</li>"
-                        "<li>г) Я чувствую себя растерянным и не знаю, что делать</li>"
-                        "</ul>"
-                    )
+                    response = f"<p><strong>Вопрос 1 из 5:</strong> {question['question']}</p><ul>"
                 else:  # Spanish
-                    response = (
-                        "<p><strong>Primera pregunta:</strong> Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?</p>"
-                        "<ul>"
-                        "<li>a) Me preocupo y pienso que algo está mal</li>"
-                        "<li>b) Me enfado y me distancio</li>"
-                        "<li>c) Entiendo que puede estar ocupada</li>"
-                        "<li>d) Me siento confundido y no sé qué hacer</li>"
-                        "</ul>"
-                    )
+                    response = f"<p><strong>Pregunta 1 de 5:</strong> {question['question']}</p><ul>"
+                
+                for i, option in enumerate(question['options']):
+                    response += f"<li>{chr(97+i)}) {option['text']}</li>"
+                response += "</ul>"
             elif message.upper() == "B":
                 # Normal conversation about feelings
-                await set_state("conversation", None, None, None)
+                await set_state("conversation", None, None, None, None, None, None)
                 if msg.language == "en":
                     response = "<p>I understand, sometimes we need to talk about what we feel before taking tests. How do you feel today? Is there something specific you'd like to share or explore together?</p>"
                 elif msg.language == "ru":
@@ -588,7 +743,7 @@ async def chat_endpoint(msg: Message):
                     response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
             elif message.upper() == "C":
                 # Normal conversation about attachment
-                await set_state("conversation", None, None, None)
+                await set_state("conversation", None, None, None, None, None, None)
                 if msg.language == "en":
                     response = (
                         "<p>Of course! Attachment is how we learned to relate since we were babies. Our first bonds with our caregivers taught us patterns that we repeat in our adult relationships.</p>"
@@ -625,6 +780,117 @@ async def chat_endpoint(msg: Message):
                         "</ul>"
                         "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
                     )
+        # Handle test questions (q1, q2, q3, q4, q5)
+        elif state in ["q1", "q2", "q3", "q4", "q5"] and message.upper() in ["A", "B", "C", "D"]:
+            print(f"[DEBUG] ENTERED: test question state {state} with choice {message.upper()}")
+            
+            questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
+            current_question_index = int(state[1]) - 1  # q1 -> 0, q2 -> 1, etc.
+            current_question = questions[current_question_index]
+            
+            # Get the selected option and its scores
+            option_index = ord(message.upper()) - ord('A')  # A->0, B->1, C->2, D->3
+            selected_option = current_question['options'][option_index]
+            
+            # Store the answer
+            if state == "q1":
+                await set_state("q2", message.upper(), selected_option['text'], q2, q3, q4, q5)
+            elif state == "q2":
+                await set_state("q3", message.upper(), q1, selected_option['text'], q3, q4, q5)
+            elif state == "q3":
+                await set_state("q4", message.upper(), q1, q2, selected_option['text'], q4, q5)
+            elif state == "q4":
+                await set_state("q5", message.upper(), q1, q2, q3, selected_option['text'], q5)
+            elif state == "q5":
+                # This is the last question, calculate results
+                await set_state("results", message.upper(), q1, q2, q3, q4, selected_option['text'])
+                
+                # Calculate scores
+                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+                
+                # Get all answers
+                answers = [q1, q2, q3, q4, selected_option['text']]
+                
+                for i, answer in enumerate(answers):
+                    if answer:
+                        # Find which option was selected for each question
+                        question_options = questions[i]['options']
+                        for j, option in enumerate(question_options):
+                            if option['text'] == answer:
+                                # Add scores for this answer
+                                for style, score in option['scores'].items():
+                                    scores[style] += score
+                                break
+                
+                # Calculate predominant style
+                predominant_style = calculate_attachment_style(scores)
+                style_description = get_style_description(predominant_style, msg.language)
+                
+                if msg.language == "en":
+                    response = (
+                        f"<p><strong>Test Results</strong></p>"
+                        f"<p>Based on your answers, your predominant attachment style is: <strong>{predominant_style.title()}</strong></p>"
+                        f"<p>{style_description}</p>"
+                        f"<p>Your scores:</p>"
+                        f"<ul>"
+                        f"<li>Secure: {scores['secure']}</li>"
+                        f"<li>Anxious: {scores['anxious']}</li>"
+                        f"<li>Avoidant: {scores['avoidant']}</li>"
+                        f"<li>Disorganized: {scores['disorganized']}</li>"
+                        f"</ul>"
+                        f"<p>Would you like to explore this further or talk about how this affects your relationships?</p>"
+                    )
+                elif msg.language == "ru":
+                    response = (
+                        f"<p><strong>Результаты теста</strong></p>"
+                        f"<p>Основываясь на ваших ответах, ваш преобладающий стиль привязанности: <strong>{predominant_style.title()}</strong></p>"
+                        f"<p>{style_description}</p>"
+                        f"<p>Ваши баллы:</p>"
+                        f"<ul>"
+                        f"<li>Безопасный: {scores['secure']}</li>"
+                        f"<li>Тревожный: {scores['anxious']}</li>"
+                        f"<li>Избегающий: {scores['avoidant']}</li>"
+                        f"<li>Дезорганизованный: {scores['disorganized']}</li>"
+                        f"</ul>"
+                        f"<p>Хотели бы вы изучить это дальше или поговорить о том, как это влияет на ваши отношения?</p>"
+                    )
+                else:  # Spanish
+                    response = (
+                        f"<p><strong>Resultados del test</strong></p>"
+                        f"<p>Basándome en tus respuestas, tu estilo de apego predominante es: <strong>{predominant_style.title()}</strong></p>"
+                        f"<p>{style_description}</p>"
+                        f"<p>Tus puntuaciones:</p>"
+                        f"<ul>"
+                        f"<li>Seguro: {scores['secure']}</li>"
+                        f"<li>Ansioso: {scores['anxious']}</li>"
+                        f"<li>Evitativo: {scores['avoidant']}</li>"
+                        f"<li>Desorganizado: {scores['disorganized']}</li>"
+                        f"</ul>"
+                        f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
+                    )
+                
+                # Reset to conversation state after showing results
+                await set_state("conversation", None, None, None, None, None, None)
+                return {"response": response}
+            
+            # Show next question
+            next_question_index = current_question_index + 1
+            if next_question_index < len(questions):
+                next_question = questions[next_question_index]
+                
+                if msg.language == "en":
+                    response = f"<p><strong>Question {next_question_index + 1} of 5:</strong> {next_question['question']}</p><ul>"
+                elif msg.language == "ru":
+                    response = f"<p><strong>Вопрос {next_question_index + 1} из 5:</strong> {next_question['question']}</p><ul>"
+                else:  # Spanish
+                    response = f"<p><strong>Pregunta {next_question_index + 1} de 5:</strong> {next_question['question']}</p><ul>"
+                
+                for i, option in enumerate(next_question['options']):
+                    response += f"<li>{chr(97+i)}) {option['text']}</li>"
+                response += "</ul>"
+            else:
+                # This shouldn't happen, but just in case
+                response = "Error: No more questions available."
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
@@ -660,6 +926,17 @@ async def chat_endpoint(msg: Message):
                 response = "Пожалуйста, выбери один из вариантов: А, Б или В."
             else:  # Spanish
                 response = "Por favor, elige una de las opciones: A, B o C."
+        
+        # Fallback for test states: prompt user to choose A, B, C, or D
+        elif state in ["q1", "q2", "q3", "q4", "q5"]:
+            print(f"[DEBUG] ENTERED: fallback test state {state} (user didn't choose A, B, C, or D)")
+            print(f"[DEBUG] In test state {state}, user sent: {message}")
+            if msg.language == "en":
+                response = "Please choose one of the options: A, B, C, or D."
+            elif msg.language == "ru":
+                response = "Пожалуйста, выбери один из вариантов: А, Б, В или Г."
+            else:  # Spanish
+                response = "Por favor, elige una de las opciones: A, B, C o D."
 
         if msg.user_id != "invitado":
             conv_id_user = str(uuid.uuid4())
@@ -674,7 +951,7 @@ async def chat_endpoint(msg: Message):
             )
 
         print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
-        print(f"[DEBUG] State details: last_choice={last_choice}, q1={q1}, q2={q2}")
+        print(f"[DEBUG] State details: last_choice={last_choice}, q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}")
         print(f"[DEBUG] Response length: {len(response) if response else 0}")
         print(f"[DEBUG] Current state: {state}, Message: '{message}', Response preview: {response[:100] if response else 'None'}...")
 
