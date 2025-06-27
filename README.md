@@ -1,8 +1,12 @@
 # Aprende a Querer - Chatbot Project
 
-## Project Structure
+## 🚀 DEPLOYMENT ARCHITECTURE
 
-### Frontend
+**IMPORTANTE**: Este proyecto usa una arquitectura separada:
+- **Frontend**: Vercel (https://svetlana-frontend.vercel.app)
+- **Backend**: Render (https://svetlana-api-ak3a.onrender.com)
+
+### Frontend (Vercel)
 - **Location**: `C:\frontend`
 - **Deployment**: Vercel (https://svetlana-frontend.vercel.app)
 - **Main files**:
@@ -12,7 +16,7 @@
   - `register.html` - User registration page
   - `assets/` - CSS, JS, images, fonts
 
-### Backend
+### Backend (Render)
 - **Location**: `C:\wrapper`
 - **Deployment**: Render (https://svetlana-api-ak3a.onrender.com)
 - **Main files**:
@@ -20,6 +24,8 @@
   - `svetlana_personality.py` - Chatbot personality configuration
   - `chatgpt_wrapper.py` - ChatGPT integration
   - `requirements.txt` - Python dependencies
+
+## Project Structure
 
 ## Key Features
 
@@ -127,3 +133,27 @@ python seed_from_json.py
 ```
 
 This will load the knowledge chunks into the database, making them available for Eldric's context-aware responses.
+
+## ⚠️ NOTAS IMPORTANTES PARA DESARROLLO
+
+**ARQUITECTURA DE DEPLOYMENT:**
+- **Frontend**: Vercel maneja el frontend (HTML, CSS, JS)
+- **Backend**: Render maneja el backend (Python, FastAPI, Database)
+
+**CUANDO HAY PROBLEMAS:**
+- Si el frontend no carga → Revisar Vercel
+- Si el chatbot no responde → Revisar Render
+- Si hay errores 404 en recursos → Revisar Vercel
+- Si hay errores de API → Revisar Render
+
+**FLUJO DE DESARROLLO:**
+1. Editar archivos en `C:\wrapper` (backend)
+2. `git add . && git commit -m "descripción" && git push`
+3. Render detecta cambios y hace auto-deploy
+4. Probar en https://svetlana-api-ak3a.onrender.com/status
+5. Si hay problemas, revisar logs en Render dashboard
+
+**URLS IMPORTANTES:**
+- Frontend: https://svetlana-frontend.vercel.app
+- Backend: https://svetlana-api-ak3a.onrender.com
+- Status endpoint: https://svetlana-api-ak3a.onrender.com/status
