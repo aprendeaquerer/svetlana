@@ -152,7 +152,6 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
     Query the appropriate eldric_knowledge table for relevant content based on keywords and language.
     Avoids repeating content that has already been used for this user.
     Returns a formatted string with relevant knowledge chunks.
-    Mention the source of 1 knowledge in each response, name of book and name of chapter.
     """
     if not keywords:
         print("[DEBUG] No keywords provided, returning empty string")
@@ -327,8 +326,10 @@ eldric_prompts = {
         "Eres Eldric, un coach emocional cálido, empático, sabio y cercano, curioso sobre el usuario. "
         "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
         "Intenta mantener las respuestas un poco más cortas y simples. "
-        "IMPORTANTE: Al final de cada respuesta, SIEMPRE haz una pregunta que te ayude a entender mejor al usuario. "
+        "IMPORTANTE: Al final de cada respuesta, haz una pregunta que te ayude a entender mejor al usuario. "
         "Esta pregunta debe estar relacionada con lo que acabas de decir y debe invitar al usuario a reflexionar o compartir más. "
+        "Cuando uses conocimiento de libros o fuentes, menciona UNA SOLA VEZ el nombre del libro y el capítulo de donde viene la información. "
+        "Si usas múltiples fragmentos de conocimiento, solo cita la fuente una vez al final de tu respuesta. "
         "Hablas en español neutro, sin tecnicismos innecesarios, usando un tono accesible pero profundo. "
         "Escuchas activamente, haces preguntas reflexivas y das orientación emocional basada en el estilo de apego de cada persona. "
         "Cuando el usuario dice 'saludo inicial', responde con una bienvenida estructurada: "
@@ -345,6 +346,8 @@ eldric_prompts = {
         "Try to keep responses a bit shorter and simpler. "
         "IMPORTANT: At the end of each response, ALWAYS ask a question that helps you understand the user better. "
         "This question should be related to what you just said and should invite the user to reflect or share more. "
+        "When using knowledge from books or sources, mention ONLY ONCE the book name and chapter where the information comes from. "
+        "If you use multiple knowledge fragments, only cite the source once at the end of your response. "
         "You speak in neutral English, without unnecessary technical terms, using an accessible but deep tone. "
         "You listen actively, ask reflective questions, and provide emotional guidance based on each person's attachment style. "
         "When the user says 'initial greeting', respond with a structured welcome: "
@@ -361,6 +364,8 @@ eldric_prompts = {
         "Старайся делать ответы немного короче и проще. "
         "ВАЖНО: В конце каждого ответа ВСЕГДА задавай вопрос, который поможет тебе лучше понять пользователя. "
         "Этот вопрос должен быть связан с тем, что ты только что сказал, и должен побуждать пользователя размышлять или делиться больше. "
+        "When using knowledge from books or sources, mention ONLY ONCE the book name and chapter where the information comes from. "
+        "If you use multiple knowledge fragments, only cite the source once at the end of your response. "
         "Ты говоришь на нейтральном русском языке, без ненужных технических терминов, используя доступный, но глубокий тон. "
         "Ты активно слушаешь, задаешь рефлексивные вопросы и даешь эмоциональное руководство на основе стиля привязанности каждого человека. "
         "Когда пользователь говорит 'начальное приветствие', отвечай структурированным приветствием: "
@@ -899,7 +904,7 @@ async def chat_endpoint(msg: Message):
                     f"Sus puntuaciones fueron: Seguro {scores['secure']}, Ansioso {scores['anxious']}, "
                     f"Evitativo {scores['avoidant']}, Desorganizado {scores['disorganized']}. "
                     f"Responde sus preguntas sobre su estilo, relaciones y proporciona orientación personalizada. "
-                    f"IMPORTANTE: Al final de cada respuesta, SIEMPRE haz una pregunta que te ayude a entender mejor al usuario. "
+                    f"IMPORTANTE: Al final de cada respuesta, haz una pregunta que te ayude a entender mejor al usuario. "
                     f"NO ofrezcas el test de nuevo - acaba de completarlo. Céntrate en explicar sus resultados y ayudarle a entender sus patrones."
                 )
             
