@@ -2,6 +2,17 @@
 # Updated with error handling for database operations
 # Force redeploy - 2024
 # Last updated: 2024-06-24 10:30 UTC
+# 
+# 🚀 DEPLOYMENT INFO:
+# This is the BACKEND that deploys to RENDER
+# Frontend deploys to VERCEL separately
+# 
+# When debugging:
+# - Frontend issues → Check Vercel
+# - Backend issues → Check Render (this service)
+# - API errors → Check Render logs
+# - 404 errors → Check Vercel
+#
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
