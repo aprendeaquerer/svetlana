@@ -564,6 +564,41 @@ async def root():
     print("Health check endpoint called")
     return {"message": "Welcome to Svetlana API! API is working."}
 
+@app.get("/status")
+async def status():
+    """Diagnostic endpoint to check system status"""
+    status_info = {
+        "api_working": True,
+        "database_connected": database is not None,
+        "chatbot_available": chatbot is not None,
+        "api_key_set": bool(os.getenv('CHATGPT_API_KEY')),
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "environment_variables": {
+            "CHATGPT_API_KEY": "SET" if os.getenv('CHATGPT_API_KEY') else "NOT SET",
+            "DATABASE_URL": "SET" if os.getenv("DATABASE_URL") else "NOT SET"
+        }
+    }
+    
+    if database is not None:
+        try:
+            # Test database connection
+            await database.execute("SELECT 1")
+            status_info["database_working"] = True
+        except Exception as e:
+            status_info["database_working"] = False
+            status_info["database_error"] = str(e)
+    
+    if chatbot is not None:
+        try:
+            # Test chatbot initialization
+            chatbot.reset()
+            status_info["chatbot_working"] = True
+        except Exception as e:
+            status_info["chatbot_working"] = False
+            status_info["chatbot_error"] = str(e)
+    
+    return status_info
+
 @app.post("/register")
 async def register(user: User):
     if database is None:
