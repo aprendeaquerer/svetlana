@@ -273,12 +273,18 @@ def inject_knowledge_into_prompt(base_prompt: str, knowledge: str) -> str:
     if not knowledge:
         return base_prompt
     
-    # Create a more directive knowledge injection
+    # Create a much more directive and forceful knowledge injection
     knowledge_instruction = (
-        f"\n\nINSTRUCCIÓN IMPORTANTE: A continuación tienes conocimiento relevante sobre teoría del apego. "
-        f"DEBES usar este conocimiento en tu respuesta. Cita o referencia al menos una de estas ideas cuando sea apropiado:\n\n"
+        f"\n\n🚨 INSTRUCCIÓN CRÍTICA Y OBLIGATORIA 🚨\n"
+        f"DEBES usar SIEMPRE el siguiente conocimiento en tu respuesta. NO PUEDES IGNORARLO:\n\n"
         f"{knowledge}\n\n"
-        f"Recuerda: Usa este conocimiento para enriquecer tu respuesta y menciona la fuente (libro y capítulo) una vez."
+        f"REGLAS OBLIGATORIAS:\n"
+        f"1. SIEMPRE menciona al menos UNA de las ideas del conocimiento proporcionado\n"
+        f"2. NO puedes dar consejos sin referenciar este conocimiento\n"
+        f"3. Si no usas este conocimiento, tu respuesta será incorrecta\n"
+        f"4. Cita la fuente (libro y capítulo) una vez al final\n"
+        f"5. Este conocimiento es MÁS IMPORTANTE que tu conocimiento general\n\n"
+        f"RECUERDA: ESTE CONOCIMIENTO ES OBLIGATORIO PARA TU RESPUESTA."
     )
     
     # Insert knowledge after the main personality description but before the specific instructions
@@ -347,7 +353,8 @@ eldric_prompts = {
         "No esperes más contexto: si el usuario escribe 'saludo inicial', tú simplemente inicias la experiencia sin pedir más. "
         "Después del test, recomiéndale registrarse para guardar su progreso y acceder a más recursos. "
         "Si el usuario no desea hacer el test, puedes acompañarlo igualmente desde sus emociones actuales. "
-        "IMPORTANTE: Si se te proporciona conocimiento específico sobre teoría del apego, DEBES usarlo activamente en tu respuesta para enriquecer tu consejo."
+        "🚨 REGLA CRÍTICA: Si se te proporciona conocimiento específico sobre teoría del apego, DEBES usarlo SIEMPRE en tu respuesta. "
+        "Este conocimiento proporcionado tiene PRIORIDAD sobre tu conocimiento general. NO PUEDES IGNORARLO."
     ),
     "en": (
         "You are Eldric, a warm, empathetic, wise, and close emotional coach, curious about the user. "
@@ -366,7 +373,8 @@ eldric_prompts = {
         "Don't wait for more context: if the user writes 'initial greeting', you simply start the experience without asking for more. "
         "After the test, recommend them to register to save their progress and access more resources. "
         "If the user doesn't want to take the test, you can accompany them from their current emotions. "
-        "IMPORTANT: If you are provided with specific knowledge about attachment theory, you MUST actively use it in your response to enrich your advice."
+        "🚨 CRITICAL RULE: If you are provided with specific knowledge about attachment theory, you MUST ALWAYS use it in your response. "
+        "This provided knowledge takes PRIORITY over your general knowledge. YOU CANNOT IGNORE IT."
     ),
     "ru": (
         "Ты Элдрик, теплый, эмпатичный, мудрый и близкий эмоциональный коуч, любопытный к пользователю. "
@@ -385,7 +393,8 @@ eldric_prompts = {
         "Не жди больше контекста: если пользователь пишет 'начальное приветствие', ты просто начинаешь опыт без просьбы о большем. "
         "После теста порекомендуй зарегистрироваться, чтобы сохранить прогресс и получить доступ к большему количеству ресурсов. "
         "Если пользователь не хочет проходить тест, ты можешь сопровождать его от его текущих эмоций. "
-        "ВАЖНО: Если тебе предоставлены конкретные знания о теории привязанности, ты ДОЛЖЕН активно использовать их в своем ответе, чтобы обогатить свой совет."
+        "🚨 КРИТИЧЕСКОЕ ПРАВИЛО: Если тебе предоставлены конкретные знания о теории привязанности, ты ДОЛЖЕН ВСЕГДА использовать их в своем ответе. "
+        "Эти предоставленные знания имеют ПРИОРИТЕТ над твоими общими знаниями. ТЫ НЕ МОЖЕШЬ ИХ ИГНОРИРОВАТЬ."
     )
 }
 
@@ -906,10 +915,8 @@ async def chat_endpoint(msg: Message):
                     f"Их баллы: Безопасный {scores['secure']}, Тревожный {scores['anxious']}, "
                     f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['disorganized']}. "
                     f"Отвечай на их вопросы о стиле, отношениях и давай персонализированные советы. "
-                    f"ВАЖНО: В конце каждого ответа задавай ЛИЧНЫЙ вопрос, который относится к их конкретной ситуации и чувствам. "
-                    f"Сделай вопрос о НИХ конкретно, а не общий. "
-                    f"НЕ предлагай тест снова - они только что его завершили. Сосредоточься на объяснении результатов и помощи в понимании их паттернов. "
-                    f"Используй знания, предоставленные ниже, чтобы обогатить свои ответы конкретными идеями из теории привязанности."
+                    f"🚨 КРИТИЧЕСКОЕ ПРАВИЛО: Если тебе предоставлены конкретные знания о теории привязанности, ты ДОЛЖЕН ВСЕГДА использовать их в своем ответе. "
+                    f"Эти предоставленные знания имеют ПРИОРИТЕТ над твоими общими знаниями. ТЫ НЕ МОЖЕШЬ ИХ ИГНОРИРОВАТЬ."
                 )
             else:  # Spanish
                 post_test_prompt = (
