@@ -23,6 +23,9 @@ Add these environment variables in Render:
 ```
 SVETLANA_API_URL=https://svetlana-api-ak3a.onrender.com
 WEBHOOK_URL=https://your-telegram-bot-service.onrender.com/webhook
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+DATABASE_URL=your_database_url_here
+CHATGPT_API_KEY=your_openai_api_key_here
 ```
 
 ### **4. Deploy and Get URL**
@@ -85,6 +88,12 @@ Check logs in Render dashboard for:
 
 ## 🛠️ **Troubleshooting**
 
+### **ModuleNotFoundError: No module named 'aiohttp':**
+1. **Check Build Command:** Make sure it's `pip install -r telegram_requirements.txt`
+2. **Check Requirements File:** Ensure `telegram_requirements.txt` exists and contains `aiohttp==3.9.1`
+3. **Redeploy:** Sometimes Render needs a manual redeploy to pick up changes
+4. **Check Build Logs:** Look for any errors during the pip install step
+
 ### **Webhook not working:**
 1. Check if service is deployed and running
 2. Verify webhook URL is correct
@@ -98,4 +107,9 @@ Check logs in Render dashboard for:
 
 ### **Formatting issues:**
 1. Check HTML to Markdown conversion
-2. Verify Telegram parse_mode settings 
+2. Verify Telegram parse_mode settings
+
+### **Build Command Issues:**
+If the build command fails, try these alternatives:
+- `pip install -r telegram_requirements.txt --no-cache-dir`
+- `pip install fastapi uvicorn aiohttp python-multipart` 
