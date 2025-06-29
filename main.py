@@ -247,8 +247,11 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         try:
             print(f"[DEBUG] Row keys: {list(row.keys())}")
             print(f"[DEBUG] Row content: {row['content'][:100]}...")
-            book_info = row.get('book', 'Teoría del apego') if row.get('book') else 'Teoría del apego'
-            chapter_info = row.get('chapter', 'Capítulo general') if row.get('chapter') else 'Capítulo general'
+            
+            # Use direct bracket access instead of .get() method
+            book_info = row['book'] if 'book' in row and row['book'] else 'Teoría del apego'
+            chapter_info = row['chapter'] if 'chapter' in row and row['chapter'] else 'Capítulo general'
+            
             print(f"[DEBUG] Book info: {book_info}, Chapter info: {chapter_info}")
         except Exception as e:
             print(f"[DEBUG] Error accessing book/chapter columns: {e}")
