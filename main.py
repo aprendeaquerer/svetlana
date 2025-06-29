@@ -150,8 +150,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
 async def get_relevant_knowledge(keywords: List[str], language: str = "es", user_id: str = None) -> str:
     """
     Query the appropriate eldric_knowledge table for relevant content based on keywords and language.
-    Avoids repeating content that has already been used for this user.
-    Returns a formatted string with relevant knowledge chunks.
+    Returns exactly ONE knowledge piece that hasn't been quoted before for this user.
     """
     if not keywords:
         print("[DEBUG] No keywords provided, returning empty string")
@@ -175,12 +174,12 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         
         print(f"[DEBUG] Using table: {table_name}")
         
-        # Get previously used content IDs for this user
-        used_ids = used_knowledge.get(user_id, set()) if user_id else set()
-        print(f"[DEBUG] Previously used IDs: {used_ids}")
+        # Get previously used quote IDs for this user
+        used_quote_ids = used_knowledge_quotes.get(user_id, set()) if user_id else set()
+        print(f"[DEBUG] Previously used quote IDs: {used_quote_ids}")
         
         # Build query to find knowledge chunks that match any of the keywords
-        # Using ILIKE for case-insensitive matching and excluding used content
+        # Using ILIKE for case-insensitive matching and excluding used quotes
         query = f"""
         SELECT id, content, tags 
         FROM {table_name} 
@@ -195,45 +194,38 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         
         query += " OR ".join(conditions)
         
-        # Exclude previously used content if we have a user_id
-        if user_id and used_ids:
+        # Exclude previously quoted content if we have a user_id
+        if user_id and used_quote_ids:
             query += " AND id NOT IN ("
-            for i, used_id in enumerate(used_ids):
+            for i, used_id in enumerate(used_quote_ids):
                 if i > 0:
                     query += ","
                 query += f":used_id_{i}"
                 values[f"used_id_{i}"] = used_id
             query += ")"
         
-        query += " ORDER BY RANDOM() LIMIT 5"
+        query += " ORDER BY RANDOM() LIMIT 1"  # Only get ONE piece
         
         print(f"[DEBUG] Query: {query}")
         print(f"[DEBUG] Values: {values}")
-        
-        # Debug: Let's see what's actually in the table
-        debug_query = f"SELECT id, content, tags FROM {table_name} LIMIT 3"
-        debug_rows = await database.fetch_all(debug_query)
-        print(f"[DEBUG] Sample data from {table_name}:")
-        for i, row in enumerate(debug_rows):
-            print(f"[DEBUG] Row {i}: id={row['id']}, tags='{row['tags']}', content='{row['content'][:100]}...'")
         
         # Execute query
         rows = await database.fetch_all(query, values=values)
         print(f"[DEBUG] Query returned {len(rows)} rows")
         
         if not rows:
-            print("[DEBUG] No rows found, checking if we should reset used content...")
-            # If no unused content found, reset used content for this user and try again
-            if user_id and used_ids:
-                print("[DEBUG] Resetting used content and trying again...")
-                used_knowledge[user_id] = set()
+            print("[DEBUG] No unused quotes found, checking if we should reset used quotes...")
+            # If no unused quotes found, reset used quotes for this user and try again
+            if user_id and used_quote_ids:
+                print("[DEBUG] Resetting used quotes and trying again...")
+                used_knowledge_quotes[user_id] = set()
                 # Re-run the query without the exclusion
                 query = f"""
                 SELECT id, content, tags 
                 FROM {table_name} 
                 WHERE """
                 query += " OR ".join(conditions)
-                query += " ORDER BY RANDOM() LIMIT 5"
+                query += " ORDER BY RANDOM() LIMIT 1"
                 rows = await database.fetch_all(query, values=values)
                 print(f"[DEBUG] Second query returned {len(rows)} rows")
         
@@ -241,25 +233,26 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
             print("[DEBUG] Still no rows found, returning empty string")
             return ""
         
-        # Track used content IDs
-        if user_id:
-            if user_id not in used_knowledge:
-                used_knowledge[user_id] = set()
-            for row in rows:
-                used_knowledge[user_id].add(row['id'])
+        # Get the single knowledge piece
+        row = rows[0]
         
-        # Format the knowledge chunks based on language
+        # Track used quote ID
+        if user_id:
+            if user_id not in used_knowledge_quotes:
+                used_knowledge_quotes[user_id] = set()
+            used_knowledge_quotes[user_id].add(row['id'])
+            print(f"[DEBUG] Added quote ID {row['id']} to used quotes for user {user_id}")
+        
+        # Format the knowledge piece based on language
         if language == "ru":
-            knowledge_text = "\n\nРелевантные знания для этой беседы:\n"
+            knowledge_text = f"\n\n📚 ЗНАНИЕ ДЛЯ ЦИТИРОВАНИЯ:\n{row['content']}\n\n🚨 ОБЯЗАТЕЛЬНО: Цитируй это знание в своем ответе."
         elif language == "en":
-            knowledge_text = "\n\nRelevant knowledge for this conversation:\n"
+            knowledge_text = f"\n\n📚 KNOWLEDGE TO QUOTE:\n{row['content']}\n\n🚨 MANDATORY: Quote this knowledge in your response."
         else:  # Spanish
-            knowledge_text = "\n\nConocimiento relevante para esta conversación:\n"
-            
-        for i, row in enumerate(rows, 1):
-            knowledge_text += f"{i}. {row['content']}\n"
+            knowledge_text = f"\n\n📚 CONOCIMIENTO PARA CITAR:\n{row['content']}\n\n🚨 OBLIGATORIO: Cita este conocimiento en tu respuesta."
         
         print(f"[DEBUG] Final knowledge text length: {len(knowledge_text)}")
+        print(f"[DEBUG] Knowledge content: {knowledge_text}")
         return knowledge_text
         
     except Exception as e:
@@ -333,6 +326,7 @@ user_chatbots = {}
 
 # Track used knowledge content to avoid repetition
 used_knowledge = {}  # user_id -> set of used content IDs
+used_knowledge_quotes = {}  # user_id -> set of used quote IDs
 
 # Language-specific prompts for Eldric
 eldric_prompts = {
@@ -883,6 +877,9 @@ async def chat_endpoint(msg: Message):
             predominant_style = calculate_attachment_style(scores)
             style_description = get_style_description(predominant_style, msg.language)
             
+            # Load conversation history for context
+            conversation_history = await load_conversation_history(msg.user_id, limit=6)
+            
             # Extract keywords and get relevant knowledge for post-test messages
             keywords = extract_keywords(message, msg.language)
             print(f"[DEBUG] Post-test message: '{message}'")
@@ -937,18 +934,23 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Enhanced post-test prompt length: {len(enhanced_post_test_prompt)}")
             print(f"[DEBUG] Enhanced post-test prompt preview: {enhanced_post_test_prompt[:500]}...")
             
-            # Reset chatbot with enhanced personalized prompt
+            # Reset chatbot with enhanced personalized prompt and conversation history
             chatbot.reset()
             chatbot.messages.append({"role": "system", "content": enhanced_post_test_prompt})
             
-            response = await run_in_threadpool(chatbot.chat, message)
+            # Add conversation history for context
+            for msg_history in conversation_history:
+                chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
             
-            # After a few exchanges, transition to normal conversation
-            # For now, stay in post_test state to maintain context
+            response = await run_in_threadpool(chatbot.chat, message)
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
             print(f"[DEBUG] This should NOT happen for first message with 'saludo inicial'")
+            
+            # Load conversation history for context
+            conversation_history = await load_conversation_history(msg.user_id, limit=6)
+            
             # Extract keywords and get relevant knowledge for non-test messages
             keywords = extract_keywords(message, msg.language)
             print(f"[DEBUG] Message: '{message}'")
@@ -964,9 +966,13 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Enhanced prompt length: {len(enhanced_prompt)}")
             print(f"[DEBUG] Enhanced prompt preview: {enhanced_prompt[:500]}...")
             
-            # Reset chatbot and set enhanced prompt
+            # Reset chatbot and set enhanced prompt with conversation history
             chatbot.reset()
             chatbot.messages.append({"role": "system", "content": enhanced_prompt})
+            
+            # Add conversation history for context
+            for msg_history in conversation_history:
+                chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
             
             response = await run_in_threadpool(chatbot.chat, message)
 
@@ -1015,3 +1021,35 @@ async def chat_endpoint(msg: Message):
     except Exception as e:
         print(f"[DEBUG] Exception in chat_endpoint: {e}")
         return {"response": "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos momentos."}
+
+async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]:
+    """
+    Load recent conversation history for a user to provide context.
+    Returns list of messages in chronological order.
+    """
+    if not database or not database.is_connected:
+        return []
+    
+    try:
+        query = """
+        SELECT role, content, timestamp 
+        FROM conversations 
+        WHERE user_id = :user_id 
+        ORDER BY timestamp DESC 
+        LIMIT :limit
+        """
+        rows = await database.fetch_all(query, values={"user_id": user_id, "limit": limit})
+        
+        # Reverse to get chronological order (oldest first)
+        messages = []
+        for row in reversed(rows):
+            messages.append({
+                "role": row["role"],
+                "content": row["content"]
+            })
+        
+        print(f"[DEBUG] Loaded {len(messages)} conversation messages for user {user_id}")
+        return messages
+    except Exception as e:
+        print(f"[DEBUG] Error loading conversation history: {e}")
+        return []
