@@ -878,7 +878,7 @@ async def chat_endpoint(msg: Message):
             style_description = get_style_description(predominant_style, msg.language)
             
             # Load conversation history for context
-            conversation_history = await load_conversation_history(msg.user_id, limit=6)
+            conversation_history = await load_conversation_history(msg.user_id)
             
             # Extract keywords and get relevant knowledge for post-test messages
             keywords = extract_keywords(message, msg.language)
@@ -949,7 +949,7 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] This should NOT happen for first message with 'saludo inicial'")
             
             # Load conversation history for context
-            conversation_history = await load_conversation_history(msg.user_id, limit=6)
+            conversation_history = await load_conversation_history(msg.user_id)
             
             # Extract keywords and get relevant knowledge for non-test messages
             keywords = extract_keywords(message, msg.language)
@@ -1025,12 +1025,27 @@ async def chat_endpoint(msg: Message):
 async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]:
     """
     Load recent conversation history for a user to provide context.
+    For registered users, loads more history for better personalization.
     Returns list of messages in chronological order.
     """
     if not database or not database.is_connected:
         return []
     
     try:
+        # Check if user is registered (not "invitado")
+        is_registered = user_id != "invitado"
+        
+        # Load more history for registered users
+        if is_registered:
+            # Load up to 50 messages for registered users (about 25 exchanges)
+            # This provides good context without hurting performance
+            history_limit = 50
+            print(f"[DEBUG] Loading extended history ({history_limit} messages) for registered user {user_id}")
+        else:
+            # Keep limited history for guest users
+            history_limit = min(limit, 10)
+            print(f"[DEBUG] Loading limited history ({history_limit} messages) for guest user {user_id}")
+        
         query = """
         SELECT role, content, timestamp 
         FROM conversations 
@@ -1038,17 +1053,29 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
         ORDER BY timestamp DESC 
         LIMIT :limit
         """
-        rows = await database.fetch_all(query, values={"user_id": user_id, "limit": limit})
+        rows = await database.fetch_all(query, values={"user_id": user_id, "limit": history_limit})
         
         # Reverse to get chronological order (oldest first)
         messages = []
+        total_content_length = 0
+        max_total_content = 8000  # Limit total content to prevent token overflow
+        
         for row in reversed(rows):
+            content = row["content"]
+            content_length = len(content)
+            
+            # Check if adding this message would exceed our limit
+            if total_content_length + content_length > max_total_content:
+                print(f"[DEBUG] Stopping history load at {len(messages)} messages due to content length limit")
+                break
+            
             messages.append({
                 "role": row["role"],
-                "content": row["content"]
+                "content": content
             })
+            total_content_length += content_length
         
-        print(f"[DEBUG] Loaded {len(messages)} conversation messages for user {user_id}")
+        print(f"[DEBUG] Loaded {len(messages)} conversation messages for user {user_id} (total content: {total_content_length} chars)")
         return messages
     except Exception as e:
         print(f"[DEBUG] Error loading conversation history: {e}")
