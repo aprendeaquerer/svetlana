@@ -244,8 +244,19 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
             print(f"[DEBUG] Added quote ID {row['id']} to used quotes for user {user_id}")
         
         # Get book and chapter information
-        book_info = row.get('book', 'Teoría del apego')
-        chapter_info = row.get('chapter', 'Capítulo general')
+        try:
+            print(f"[DEBUG] Row keys: {list(row.keys())}")
+            print(f"[DEBUG] Row content: {row['content'][:100]}...")
+            book_info = row.get('book', 'Teoría del apego') if row.get('book') else 'Teoría del apego'
+            chapter_info = row.get('chapter', 'Capítulo general') if row.get('chapter') else 'Capítulo general'
+            print(f"[DEBUG] Book info: {book_info}, Chapter info: {chapter_info}")
+        except Exception as e:
+            print(f"[DEBUG] Error accessing book/chapter columns: {e}")
+            print(f"[DEBUG] Error type: {type(e)}")
+            import traceback
+            print(f"[DEBUG] Error traceback: {traceback.format_exc()}")
+            book_info = 'Teoría del apego'
+            chapter_info = 'Capítulo general'
         
         # Format the knowledge piece based on language
         if language == "ru":
