@@ -153,32 +153,6 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error logging in user: {e}")
             return {"error": "Connection error during login"}
-    
-    async def check_user_exists(self, user_id: str) -> Dict[str, Any]:
-        """Check if user exists in database"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                # Try to call the API with a simple message to see if user exists
-                payload = {
-                    "user_id": user_id,
-                    "message": "check_user",
-                    "language": "es"
-                }
-                
-                logger.info(f"Checking if user exists: {user_id}")
-                
-                async with session.post(f"{self.svetlana_url}/message", json=payload) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        # If we get a proper response, user likely exists
-                        logger.info(f"User check successful: {result}")
-                        return {"exists": True, "result": result}
-                    else:
-                        logger.info(f"User check failed: {response.status}")
-                        return {"exists": False}
-        except Exception as e:
-            logger.error(f"Error checking user: {e}")
-            return {"exists": False}
 
 # Initialize bot
 bot = TelegramBot()
@@ -216,38 +190,15 @@ async def telegram_webhook(request: Request):
 async def handle_command(chat_id: int, user_id: str, command: str):
     """Handle Telegram commands"""
     if command == "/start":
-        # Check if user is already registered
-        user_check = await bot.check_user_exists(user_id)
-        
-        if user_check.get("exists"):
-            # User is registered, show normal greeting
-            welcome_message = (
-                "🤖 *¡Hola! Soy Eldric, tu coach emocional*\n\n"
-                "Estoy aquí para ayudarte a entender mejor tus relaciones desde la teoría del apego.\n\n"
-                "*Comandos disponibles:*\n"
-                "• /help - Mostrar ayuda\n"
-                "• /test - Realizar test de apego\n\n"
-                "Para comenzar, escribe *'saludo inicial'* y te guiaré a través de un pequeño test que te ayudará a descubrir tu estilo de apego predominante.\n\n"
-                "También puedes simplemente contarme cómo te sientes y te acompañaré desde ahí.\n\n"
-                "¿Cómo te gustaría empezar?"
-            )
-            await bot.send_message(chat_id, welcome_message, parse_mode="Markdown")
-        else:
-            # User is not registered, show greeting with registration option
-            welcome_message = (
-                "🤖 *¡Hola! Soy Eldric, tu coach emocional*\n\n"
-                "Estoy aquí para ayudarte a entender mejor tus relaciones desde la teoría del apego.\n\n"
-                "*Para comenzar, elige una opción:*\n\n"
-                "a) *Crear una cuenta* - Para guardar tu progreso y acceder a más recursos\n"
-                "b) *Continuar como invitado* - Para probar el servicio sin registro\n"
-                "c) *Más información* - Conocer más sobre la teoría del apego\n\n"
-                "Si eliges crear cuenta, podrás:\n"
-                "• Guardar tus resultados del test\n"
-                "• Acceder a tu historial de conversaciones\n"
-                "• Recibir recomendaciones personalizadas\n\n"
-                "¿Qué prefieres hacer?"
-            )
-            await bot.send_message(chat_id, welcome_message, parse_mode="Markdown")
+        # Show the same greeting as the web version
+        welcome_message = (
+            "🤖 *¡Hola! Soy Eldric, tu coach emocional*\n\n"
+            "Estoy aquí para ayudarte a entender mejor tus relaciones desde la teoría del apego.\n\n"
+            "Para comenzar, escribe *'saludo inicial'* y te guiaré a través de un pequeño test que te ayudará a descubrir tu estilo de apego predominante.\n\n"
+            "También puedes simplemente contarme cómo te sientes y te acompañaré desde ahí.\n\n"
+            "¿Cómo te gustaría empezar?"
+        )
+        await bot.send_message(chat_id, welcome_message, parse_mode="Markdown")
     
     elif command == "/help":
         help_message = (
@@ -302,11 +253,6 @@ async def handle_message(chat_id: int, user_id: str, text: str):
             await handle_login(chat_id, user_id, text, user_state)
             return
         
-        # Handle greeting choices for unregistered users
-        if text.upper() in ["A", "B", "C"]:
-            await handle_greeting_choice(chat_id, user_id, text.upper())
-            return
-        
         # Send typing indicator
         await bot.send_typing_action(chat_id)
         
@@ -317,7 +263,7 @@ async def handle_message(chat_id: int, user_id: str, text: str):
         elif any(word in text.lower() for word in ["привет", "здравствуйте"]):
             language = "ru"
         
-        # Call Svetlana API
+        # Call Svetlana API - this will handle all the logic like the web version
         result = await bot.call_svetlana_api(user_id, text, language)
         
         if "response" in result:
@@ -414,48 +360,6 @@ async def handle_login(chat_id: int, user_id: str, text: str, user_state: dict):
                 await bot.send_message(chat_id, f"❌ Error en el inicio de sesión: {error_msg}\n\nIntenta de nuevo con /login")
             # Clear user state
             user_states.pop(user_id, None)
-
-async def handle_greeting_choice(chat_id: int, user_id: str, choice: str):
-    """Handle greeting choices for unregistered users"""
-    if choice == "A":
-        # User wants to register
-        user_states[user_id] = {"state": "registering", "step": "username"}
-        register_message = (
-            "📝 *Registro de cuenta*\n\n"
-            "¡Excelente elección! Vamos a crear tu cuenta paso a paso.\n\n"
-            "Primero, elige un nombre de usuario (sin espacios):\n"
-            "Ejemplo: *miusuario123*"
-        )
-        await bot.send_message(chat_id, register_message, parse_mode="Markdown")
-    
-    elif choice == "B":
-        # User wants to continue as guest
-        guest_message = (
-            "👋 *¡Perfecto! Continuarás como invitado*\n\n"
-            "Puedes usar todas las funciones, pero tu progreso no se guardará.\n\n"
-            "Para comenzar, escribe *'saludo inicial'* y te guiaré a través de un pequeño test que te ayudará a descubrir tu estilo de apego predominante.\n\n"
-            "También puedes simplemente contarme cómo te sientes y te acompañaré desde ahí.\n\n"
-            "¿Cómo te gustaría empezar?"
-        )
-        await bot.send_message(chat_id, guest_message, parse_mode="Markdown")
-    
-    elif choice == "C":
-        # User wants more information
-        info_message = (
-            "📚 *Teoría del Apego*\n\n"
-            "La teoría del apego explica cómo nuestras primeras relaciones con nuestros cuidadores influyen en cómo nos relacionamos como adultos.\n\n"
-            "*Los cuatro estilos de apego son:*\n\n"
-            "🔒 *Seguro:* Te sientes cómodo con la intimidad y la independencia\n"
-            "😰 *Ansioso:* Buscas mucha cercanía y te preocupas por el rechazo\n"
-            "🚪 *Evitativo:* Prefieres mantener distancia emocional\n"
-            "🔄 *Desorganizado:* Tienes patrones contradictorios\n\n"
-            "Conocer tu estilo te ayuda a:\n"
-            "• Entender tus patrones en relaciones\n"
-            "• Mejorar tu comunicación\n"
-            "• Desarrollar relaciones más saludables\n\n"
-            "¿Te gustaría hacer el test ahora o prefieres registrarte primero?"
-        )
-        await bot.send_message(chat_id, info_message, parse_mode="Markdown")
 
 @app.get("/set-webhook")
 async def set_webhook():
