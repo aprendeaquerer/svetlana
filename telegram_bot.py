@@ -105,6 +105,54 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error calling Svetlana API: {e}")
             return {"response": "Lo siento, estoy teniendo problemas de conexión. Por favor, intenta de nuevo en unos momentos."}
+    
+    async def register_user(self, user_id: str, password: str) -> Dict[str, Any]:
+        """Register user with Svetlana API"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "user_id": user_id,
+                    "password": password
+                }
+                
+                logger.info(f"Registering user: {user_id}")
+                
+                async with session.post(f"{self.svetlana_url}/register", json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.info(f"Registration successful: {result}")
+                        return result
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Registration failed: {response.status} - {error_text}")
+                        return {"error": f"Registration failed: {error_text}"}
+        except Exception as e:
+            logger.error(f"Error registering user: {e}")
+            return {"error": "Connection error during registration"}
+    
+    async def login_user(self, user_id: str, password: str) -> Dict[str, Any]:
+        """Login user with Svetlana API"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "user_id": user_id,
+                    "password": password
+                }
+                
+                logger.info(f"Logging in user: {user_id}")
+                
+                async with session.post(f"{self.svetlana_url}/login", json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.info(f"Login successful: {result}")
+                        return result
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Login failed: {response.status} - {error_text}")
+                        return {"error": f"Login failed: {error_text}"}
+        except Exception as e:
+            logger.error(f"Error logging in user: {e}")
+            return {"error": "Connection error during login"}
 
 # Initialize bot
 bot = TelegramBot()
@@ -145,6 +193,11 @@ async def handle_command(chat_id: int, user_id: str, command: str):
         welcome_message = (
             "🤖 *¡Hola! Soy Eldric, tu coach emocional*\n\n"
             "Estoy aquí para ayudarte a entender mejor tus relaciones desde la teoría del apego.\n\n"
+            "*Comandos disponibles:*\n"
+            "• /register - Crear una cuenta\n"
+            "• /login - Iniciar sesión\n"
+            "• /help - Mostrar ayuda\n"
+            "• /test - Realizar test de apego\n\n"
             "Para comenzar, escribe *'saludo inicial'* y te guiaré a través de un pequeño test que te ayudará a descubrir tu estilo de apego predominante.\n\n"
             "También puedes simplemente contarme cómo te sientes y te acompañaré desde ahí.\n\n"
             "¿Cómo te gustaría empezar?"
@@ -155,21 +208,55 @@ async def handle_command(chat_id: int, user_id: str, command: str):
         help_message = (
             "📚 *Comandos disponibles:*\n\n"
             "/start - Iniciar conversación\n"
+            "/register - Crear una cuenta\n"
+            "/login - Iniciar sesión\n"
             "/help - Mostrar esta ayuda\n"
             "/test - Realizar test de apego\n\n"
             "💡 *Consejos:*\n"
             "• Escribe 'saludo inicial' para comenzar\n"
             "• Comparte tus sentimientos libremente\n"
-            "• Te haré preguntas para conocerte mejor"
+            "• Te haré preguntas para conocerte mejor\n"
+            "• Regístrate para guardar tu progreso"
         )
         await bot.send_message(chat_id, help_message, parse_mode="Markdown")
     
     elif command == "/test":
         await bot.send_message(chat_id, "Para realizar el test, escribe *'saludo inicial'* y te guiaré paso a paso.", parse_mode="Markdown")
+    
+    elif command == "/register":
+        # Set user state to registration
+        user_states[user_id] = {"state": "registering", "step": "username"}
+        register_message = (
+            "📝 *Registro de cuenta*\n\n"
+            "Vamos a crear tu cuenta paso a paso.\n\n"
+            "Primero, elige un nombre de usuario (sin espacios):\n"
+            "Ejemplo: *miusuario123*"
+        )
+        await bot.send_message(chat_id, register_message, parse_mode="Markdown")
+    
+    elif command == "/login":
+        # Set user state to login
+        user_states[user_id] = {"state": "logging_in", "step": "username"}
+        login_message = (
+            "🔐 *Iniciar sesión*\n\n"
+            "Vamos a iniciar sesión en tu cuenta.\n\n"
+            "Primero, escribe tu nombre de usuario:"
+        )
+        await bot.send_message(chat_id, login_message, parse_mode="Markdown")
 
 async def handle_message(chat_id: int, user_id: str, text: str):
     """Handle regular text messages"""
     try:
+        # Check if user is in a special state (registering or logging in)
+        user_state = user_states.get(user_id, {})
+        
+        if user_state.get("state") == "registering":
+            await handle_registration(chat_id, user_id, text, user_state)
+            return
+        elif user_state.get("state") == "logging_in":
+            await handle_login(chat_id, user_id, text, user_state)
+            return
+        
         # Send typing indicator
         await bot.send_typing_action(chat_id)
         
@@ -195,6 +282,88 @@ async def handle_message(chat_id: int, user_id: str, text: str):
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         await bot.send_message(chat_id, "Lo siento, ocurrió un error. Por favor, intenta de nuevo en unos momentos.")
+
+async def handle_registration(chat_id: int, user_id: str, text: str, user_state: dict):
+    """Handle user registration flow"""
+    step = user_state.get("step", "username")
+    
+    if step == "username":
+        # Validate username
+        if len(text) < 3 or len(text) > 20 or " " in text:
+            await bot.send_message(chat_id, "❌ El nombre de usuario debe tener entre 3 y 20 caracteres sin espacios. Intenta de nuevo:")
+            return
+        
+        # Store username and move to password step
+        user_states[user_id] = {
+            "state": "registering", 
+            "step": "password", 
+            "username": text
+        }
+        
+        await bot.send_message(chat_id, "✅ Nombre de usuario válido.\n\nAhora elige una contraseña (mínimo 6 caracteres):")
+    
+    elif step == "password":
+        # Validate password
+        if len(text) < 6:
+            await bot.send_message(chat_id, "❌ La contraseña debe tener al menos 6 caracteres. Intenta de nuevo:")
+            return
+        
+        # Get stored username
+        username = user_state.get("username")
+        
+        # Register user with Svetlana API
+        result = await bot.register_user(username, text)
+        
+        if "error" not in result:
+            # Registration successful
+            await bot.send_message(chat_id, "🎉 *¡Registro exitoso!*\n\nTu cuenta ha sido creada. Ahora puedes usar /login para iniciar sesión.", parse_mode="Markdown")
+            # Clear user state
+            user_states.pop(user_id, None)
+        else:
+            # Registration failed
+            error_msg = result.get("error", "Error desconocido")
+            if "already exists" in error_msg.lower():
+                await bot.send_message(chat_id, "❌ Este nombre de usuario ya existe. Usa /register para intentar con otro nombre.")
+            else:
+                await bot.send_message(chat_id, f"❌ Error en el registro: {error_msg}\n\nIntenta de nuevo con /register")
+            # Clear user state
+            user_states.pop(user_id, None)
+
+async def handle_login(chat_id: int, user_id: str, text: str, user_state: dict):
+    """Handle user login flow"""
+    step = user_state.get("step", "username")
+    
+    if step == "username":
+        # Store username and move to password step
+        user_states[user_id] = {
+            "state": "logging_in", 
+            "step": "password", 
+            "username": text
+        }
+        
+        await bot.send_message(chat_id, "Ahora escribe tu contraseña:")
+    
+    elif step == "password":
+        # Get stored username
+        username = user_state.get("username")
+        
+        # Login user with Svetlana API
+        result = await bot.login_user(username, text)
+        
+        if "error" not in result:
+            # Login successful
+            await bot.send_message(chat_id, "✅ *¡Inicio de sesión exitoso!*\n\nAhora puedes usar todas las funciones. Escribe *'saludo inicial'* para comenzar.", parse_mode="Markdown")
+            # Clear user state
+            user_states.pop(user_id, None)
+        else:
+            # Login failed
+            error_msg = result.get("error", "Error desconocido")
+            if "invalid" in error_msg.lower() or "not found" in error_msg.lower():
+                await bot.send_message(chat_id, "❌ Usuario o contraseña incorrectos. Usa /login para intentar de nuevo.")
+            else:
+                await bot.send_message(chat_id, f"❌ Error en el inicio de sesión: {error_msg}\n\nIntenta de nuevo con /login")
+            # Clear user state
+            user_states.pop(user_id, None)
 
 @app.get("/set-webhook")
 async def set_webhook():
