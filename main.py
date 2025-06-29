@@ -181,7 +181,7 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
         # Build query to find knowledge chunks that match any of the keywords
         # Using ILIKE for case-insensitive matching and excluding used quotes
         query = f"""
-        SELECT id, content, tags 
+        SELECT id, content, tags, book, chapter 
         FROM {table_name} 
         WHERE """
         
@@ -221,7 +221,7 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
                 used_knowledge_quotes[user_id] = set()
                 # Re-run the query without the exclusion
                 query = f"""
-                SELECT id, content, tags 
+                SELECT id, content, tags, book, chapter 
                 FROM {table_name} 
                 WHERE """
                 query += " OR ".join(conditions)
@@ -243,13 +243,17 @@ async def get_relevant_knowledge(keywords: List[str], language: str = "es", user
             used_knowledge_quotes[user_id].add(row['id'])
             print(f"[DEBUG] Added quote ID {row['id']} to used quotes for user {user_id}")
         
+        # Get book and chapter information
+        book_info = row.get('book', 'Teoría del apego')
+        chapter_info = row.get('chapter', 'Capítulo general')
+        
         # Format the knowledge piece based on language
         if language == "ru":
-            knowledge_text = f"\n\n📚 ЗНАНИЕ ДЛЯ ЦИТИРОВАНИЯ:\n{row['content']}\n\n🚨 ОБЯЗАТЕЛЬНО: Цитируй это знание в своем ответе."
+            knowledge_text = f"\n\n📚 ЗНАНИЕ ДЛЯ ЦИТИРОВАНИЯ:\n{row['content']}\n\n📖 Источник: {book_info}, {chapter_info}\n\n🚨 ОБЯЗАТЕЛЬНО: Цитируй это знание в своем ответе."
         elif language == "en":
-            knowledge_text = f"\n\n📚 KNOWLEDGE TO QUOTE:\n{row['content']}\n\n🚨 MANDATORY: Quote this knowledge in your response."
+            knowledge_text = f"\n\n📚 KNOWLEDGE TO QUOTE:\n{row['content']}\n\n📖 Source: {book_info}, {chapter_info}\n\n🚨 MANDATORY: Quote this knowledge in your response."
         else:  # Spanish
-            knowledge_text = f"\n\n📚 CONOCIMIENTO PARA CITAR:\n{row['content']}\n\n🚨 OBLIGATORIO: Cita este conocimiento en tu respuesta."
+            knowledge_text = f"\n\n📚 CONOCIMIENTO PARA CITAR:\n{row['content']}\n\n📖 Fuente: {book_info}, {chapter_info}\n\n🚨 OBLIGATORIO: Cita este conocimiento en tu respuesta."
         
         print(f"[DEBUG] Final knowledge text length: {len(knowledge_text)}")
         print(f"[DEBUG] Knowledge content: {knowledge_text}")
@@ -449,6 +453,8 @@ async def startup():
                     id SERIAL PRIMARY KEY,
                     content TEXT NOT NULL,
                     tags TEXT NOT NULL,
+                    book TEXT,
+                    chapter TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -459,6 +465,8 @@ async def startup():
                 id SERIAL PRIMARY KEY,
                 content TEXT NOT NULL,
                 tags TEXT NOT NULL,
+                book TEXT,
+                chapter TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
