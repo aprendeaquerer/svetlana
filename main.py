@@ -707,11 +707,11 @@ async def chat_endpoint(msg: Message):
             question = questions[0]
             
             if msg.language == "en":
-                response = f"<p><strong>Question 1 of 5:</strong> {question['question']}</p><ul>"
+                response = f"<p><strong>Question 1 of 10:</strong> {question['question']}</p><ul>"
             elif msg.language == "ru":
-                response = f"<p><strong>Вопрос 1 из 5:</strong> {question['question']}</p><ul>"
+                response = f"<p><strong>Вопрос 1 из 10:</strong> {question['question']}</p><ul>"
             else:  # Spanish
-                response = f"<p><strong>Pregunta 1 de 5:</strong> {question['question']}</p><ul>"
+                response = f"<p><strong>Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
             
             for i, option in enumerate(question['options']):
                 response += f"<li>{chr(97+i)}) {option['text']}</li>"
@@ -730,11 +730,11 @@ async def chat_endpoint(msg: Message):
                 question = questions[0]
                 
                 if msg.language == "en":
-                    response = f"<p><strong>Question 1 of 5:</strong> {question['question']}</p><ul>"
+                    response = f"<p><strong>Question 1 of 10:</strong> {question['question']}</p><ul>"
                 elif msg.language == "ru":
-                    response = f"<p><strong>Вопрос 1 из 5:</strong> {question['question']}</p><ul>"
+                    response = f"<p><strong>Вопрос 1 из 10:</strong> {question['question']}</p><ul>"
                 else:  # Spanish
-                    response = f"<p><strong>Pregunta 1 de 5:</strong> {question['question']}</p><ul>"
+                    response = f"<p><strong>Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
                 
                 for i, option in enumerate(question['options']):
                     response += f"<li>{chr(97+i)}) {option['text']}</li>"
@@ -788,11 +788,11 @@ async def chat_endpoint(msg: Message):
                         "<p>¿Te gustaría hacer el test ahora o prefieres que hablemos de algo específico?</p>"
                     )
         # Handle test questions (q1, q2, q3, q4, q5)
-        elif state in ["q1", "q2", "q3", "q4", "q5"] and message.upper() in ["A", "B", "C", "D"]:
+        elif state in [f"q{i}" for i in range(1, 11)] and message.upper() in ["A", "B", "C", "D"]:
             print(f"[DEBUG] ENTERED: test question state {state} with choice {message.upper()}")
             
             questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
-            current_question_index = int(state[1]) - 1  # q1 -> 0, q2 -> 1, etc.
+            current_question_index = int(state[1:]) - 1  # q1 -> 0, q2 -> 1, etc.
             current_question = questions[current_question_index]
             
             # Get the selected option and its scores
@@ -800,39 +800,49 @@ async def chat_endpoint(msg: Message):
             selected_option = current_question['options'][option_index]
             
             # Store the answer
-            if state == "q1":
-                await set_state("q2", message.upper(), selected_option['text'], q2, q3, q4, q5, q6, q7, q8, q9, q10)
-            elif state == "q2":
-                await set_state("q3", message.upper(), q1, selected_option['text'], q3, q4, q5, q6, q7, q8, q9, q10)
-            elif state == "q3":
-                await set_state("q4", message.upper(), q1, q2, selected_option['text'], q4, q5, q6, q7, q8, q9, q10)
-            elif state == "q4":
-                await set_state("q5", message.upper(), q1, q2, q3, selected_option['text'], q5, q6, q7, q8, q9, q10)
-            elif state == "q5":
-                # This is the last question, calculate results
-                await set_state("results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                
-                # Calculate scores
+            # Avance dinámico para 10 preguntas
+            next_state = f"q{current_question_index + 2}"
+            if current_question_index < len(questions) - 1:
+                # Guardar respuesta y avanzar a la siguiente pregunta
+                set_state_args = [None] * 11
+                set_state_args[current_question_index] = selected_option['text']
+                await set_state(next_state, message.upper(), *[
+                    q1 if i != 0 else set_state_args[0],
+                    q2 if i != 1 else set_state_args[1],
+                    q3 if i != 2 else set_state_args[2],
+                    q4 if i != 3 else set_state_args[3],
+                    q5 if i != 4 else set_state_args[4],
+                    q6 if i != 5 else set_state_args[5],
+                    q7 if i != 6 else set_state_args[6],
+                    q8 if i != 7 else set_state_args[7],
+                    q9 if i != 8 else set_state_args[8],
+                    q10 if i != 9 else set_state_args[9],
+                ])
+                next_question = questions[current_question_index + 1]
+                if msg.language == "en":
+                    response = f"<p><strong>Question {current_question_index + 2} of 10:</strong> {next_question['question']}</p><ul>"
+                elif msg.language == "ru":
+                    response = f"<p><strong>Вопрос {current_question_index + 2} из 10:</strong> {next_question['question']}</p><ul>"
+                else:
+                    response = f"<p><strong>Pregunta {current_question_index + 2} de 10:</strong> {next_question['question']}</p><ul>"
+                for i, option in enumerate(next_question['options']):
+                    response += f"<li>{chr(97+i)}) {option['text']}</li>"
+                response += "</ul>"
+            else:
+                # Última pregunta respondida, calcular resultados
+                await set_state("results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
-                
-                # Get all answers
-                answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
-                
+                answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text']]
                 for i, answer in enumerate(answers):
                     if answer:
-                        # Find which option was selected for each question
                         question_options = questions[i]['options']
-                        for j, option in enumerate(question_options):
+                        for option in question_options:
                             if option['text'] == answer:
-                                # Add scores for this answer
                                 for style, score in option['scores'].items():
                                     scores[style] += score
                                 break
-                
-                # Calculate predominant style
                 predominant_style = calculate_attachment_style(scores)
                 style_description = get_style_description(predominant_style, msg.language)
-                
                 if msg.language == "en":
                     response = (
                         f"<p><strong>Test Results</strong></p>"
@@ -861,7 +871,7 @@ async def chat_endpoint(msg: Message):
                         f"</ul>"
                         f"<p>Хотели бы вы изучить это дальше или поговорить о том, как это влияет на ваши отношения?</p>"
                     )
-                else:  # Spanish
+                else:
                     response = (
                         f"<p><strong>Resultados del test</strong></p>"
                         f"<p>Basándome en tus respuestas, tu estilo de apego predominante es: <strong>{predominant_style.title()}</strong></p>"
@@ -875,29 +885,8 @@ async def chat_endpoint(msg: Message):
                         f"</ul>"
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
-                
-                # Reset to conversation state after showing results, but keep the answers
-                await set_state("post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state("post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 return {"response": response}
-            
-            # Show next question
-            next_question_index = current_question_index + 1
-            if next_question_index < len(questions):
-                next_question = questions[next_question_index]
-                
-                if msg.language == "en":
-                    response = f"<p><strong>Question {next_question_index + 1} of 5:</strong> {next_question['question']}</p><ul>"
-                elif msg.language == "ru":
-                    response = f"<p><strong>Вопрос {next_question_index + 1} из 5:</strong> {next_question['question']}</p><ul>"
-                else:  # Spanish
-                    response = f"<p><strong>Pregunta {next_question_index + 1} de 5:</strong> {next_question['question']}</p><ul>"
-                
-                for i, option in enumerate(next_question['options']):
-                    response += f"<li>{chr(97+i)}) {option['text']}</li>"
-                response += "</ul>"
-            else:
-                # This shouldn't happen, but just in case
-                response = "Error: No more questions available."
         # Handle post-test conversation (user just finished test)
         elif state == "post_test":
             print(f"[DEBUG] ENTERED: post_test state - user just finished test")
@@ -1031,7 +1020,7 @@ async def chat_endpoint(msg: Message):
                 response = "Por favor, elige una de las opciones: A, B o C."
         
         # Fallback for test states: prompt user to choose A, B, C, or D
-        elif state in ["q1", "q2", "q3", "q4", "q5"]:
+        elif state in [f"q{i}" for i in range(1, 11)]:
             print(f"[DEBUG] ENTERED: fallback test state {state} (user didn't choose A, B, C, or D)")
             print(f"[DEBUG] In test state {state}, user sent: {message}")
             if msg.language == "en":
