@@ -349,10 +349,10 @@ used_knowledge_quotes = {}  # user_id -> set of used quote IDs
 # Language-specific prompts for Eldric
 eldric_prompts = {
     "es": (
-        "Eres Eldric, un coach emocional cálido, empático, sabio y cercano, curioso sobre el usuario. "
-        "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. "
+        "Eres Eldric, un coach emocional cálido, empático, sabio y cercano, curioso sobre el usuario. Copia ligeralmente el estilo de charla del usuario"
+        "Eres experto en teoría del apego, psicología de las relaciones y acompañamiento emocional. estas ligeramente mas de lado del usuario, si hay conflicto de pareja "
         "IMPORTANTE: Mantén las respuestas CORTAS y DIRECTAS (máximo 3-4 párrafos). "
-        "IMPORTANTE: Al final de cada respuesta, haz UNA pregunta que ayude a entender mejor al usuario Y/O a su pareja (si la menciona). "
+        "IMPORTANTE: Al final de cada respuesta, haz UNA pregunta que ayude a entender mejor al usuario Y/O a su pareja. "
         "La pregunta debe ser EMPÁTICA y relacionada con lo que acabas de decir. "
         "Cuando uses conocimiento de libros o fuentes, menciona UNA SOLA VEZ el nombre del libro y el capítulo de donde viene la información. "
         "Si usas múltiples fragmentos de conocimiento, solo cita la fuente una vez al final de tu respuesta. "
@@ -371,10 +371,10 @@ eldric_prompts = {
         "Este conocimiento proporcionado tiene PRIORIDAD sobre tu conocimiento general. NO PUEDES IGNORARLO."
     ),
     "en": (
-        "You are Eldric, a warm, empathetic, wise, and close emotional coach, curious about the user. "
-        "You are an expert in attachment theory, relationship psychology, and emotional accompaniment. "
+        "You are Eldric, a warm, empathetic, wise, and close emotional coach, curious about the user. Copy lightly the user's chat style. "
+        "You are an expert in attachment theory, relationship psychology, and emotional support. You are slightly more on the user's side if there is a couple's conflict. "
         "IMPORTANT: Keep responses SHORT and DIRECT (maximum 3-4 paragraphs). "
-        "IMPORTANT: At the end of each response, ask ONE question that helps understand the user AND/OR their partner (if mentioned). "
+        "IMPORTANT: At the end of each response, ask ONE question that helps to better understand the user AND/OR their partner. "
         "The question should be EMPATHETIC and related to what you just said. "
         "When using knowledge from books or sources, mention ONLY ONCE the book name and chapter where the information comes from. "
         "If you use multiple knowledge fragments, only cite the source once at the end of your response. "
@@ -384,7 +384,7 @@ eldric_prompts = {
         "If the user mentions their partner, ask questions about BOTH: how the user feels AND how they think their partner feels. "
         "When the user says 'initial greeting', respond with a structured welcome: "
         "a brief introduction of yourself, a simple explanation of attachment styles, and a clear invitation to take a test. "
-        "Use double line breaks (\n\n) to separate paragraphs, and if you ask questions with options, use format like:\n"
+        "Use double line breaks (\\n\\n) to separate paragraphs, and if you ask questions with options, use format like:\n"
         "a) option one\nb) option two\nc) option three\nd) option four. "
         "Don't wait for more context: if the user writes 'initial greeting', you simply start the experience without asking for more. "
         "After the test, recommend them to register to save their progress and access more resources. "
@@ -393,10 +393,10 @@ eldric_prompts = {
         "This provided knowledge takes PRIORITY over your general knowledge. YOU CANNOT IGNORE IT."
     ),
     "ru": (
-        "Ты Элдрик, теплый, эмпатичный, мудрый и близкий эмоциональный коуч, любопытный к пользователю. "
-        "Ты эксперт в теории привязанности, психологии отношений и эмоциональном сопровождении. "
+        "Ты Элдрик, теплый, эмпатичный, мудрый и близкий эмоциональный коуч, любопытный к пользователю. Копируй слегка стиль общения пользователя. "
+        "Ты эксперт в теории привязанности, психологии отношений и эмоциональном сопровождении. Ты немного больше на стороне пользователя, если есть конфликт в паре. "
         "ВАЖНО: Делай ответы КОРОТКИМИ и ПРЯМЫМИ (максимум 3-4 абзаца). "
-        "ВАЖНО: В конце каждого ответа задавай ОДИН вопрос, который поможет лучше понять пользователя И/ИЛИ его партнера (если упоминается). "
+        "ВАЖНО: В конце каждого ответа задавай ОДИН вопрос, который поможет лучше понять пользователя И/ИЛИ его партнера. "
         "Этот вопрос должен быть ЭМПАТИЧНЫМ и связанным с тем, что ты только что сказал. "
         "Когда используешь знания из книг или источников, упомяни ТОЛЬКО ОДИН РАЗ название книги и главу, откуда взята информация. "
         "Если ты используешь несколько фрагментов знаний, цитируй источник только один раз в конце ответа. "
@@ -406,7 +406,7 @@ eldric_prompts = {
         "Если пользователь упоминает своего партнера, задавай вопросы об ОБОИХ: как чувствует себя пользователь И как, по его мнению, чувствует себя его партнер. "
         "Когда пользователь говорит 'начальное приветствие', отвечай структурированным приветствием: "
         "краткое представление себя, простое объяснение стилей привязанности и четкое приглашение пройти тест. "
-        "Используй двойные переносы строк (\n\n) для разделения абзацев, и если задаешь вопросы с вариантами, используй формат:\n"
+        "Используй двойные переносы строк (\\n\\n) для разделения абзацев, и если задаешь вопросы с вариантами, используй формат:\n"
         "а) вариант один\nб) вариант два\nв) вариант три\nг) вариант четыре. "
         "Не жди больше контекста: если пользователь пишет 'начальное приветствие', ты просто начинаешь опыт без просьбы о большем. "
         "После теста порекомендуй зарегистрироваться, чтобы сохранить прогресс и получить доступ к большему количеству ресурсов. "
@@ -462,6 +462,11 @@ async def startup():
                 q3 TEXT,
                 q4 TEXT,
                 q5 TEXT,
+                q6 TEXT,
+                q7 TEXT,
+                q8 TEXT,
+                q9 TEXT,
+                q10 TEXT,
                 language TEXT DEFAULT 'es'
             )
         """)
@@ -580,7 +585,7 @@ async def chat_endpoint(msg: Message):
                 return {"response": "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."}
             
             print(f"[DEBUG] Attempting database query...")
-            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
             state = state_row["state"] if state_row else None
             last_choice = state_row["last_choice"] if state_row else None
             q1 = state_row["q1"] if state_row else None
@@ -588,6 +593,11 @@ async def chat_endpoint(msg: Message):
             q3 = state_row["q3"] if state_row else None
             q4 = state_row["q4"] if state_row else None
             q5 = state_row["q5"] if state_row else None
+            q6 = state_row["q6"] if state_row else None
+            q7 = state_row["q7"] if state_row else None
+            q8 = state_row["q8"] if state_row else None
+            q9 = state_row["q9"] if state_row else None
+            q10 = state_row["q10"] if state_row else None
             
             print(f"[DEBUG] Database query successful")
             print(f"[DEBUG] Database query result: {state_row}")
@@ -598,6 +608,11 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Retrieved q3: {q3}")
             print(f"[DEBUG] Retrieved q4: {q4}")
             print(f"[DEBUG] Retrieved q5: {q5}")
+            print(f"[DEBUG] Retrieved q6: {q6}")
+            print(f"[DEBUG] Retrieved q7: {q7}")
+            print(f"[DEBUG] Retrieved q8: {q8}")
+            print(f"[DEBUG] Retrieved q9: {q9}")
+            print(f"[DEBUG] Retrieved q10: {q10}")
         except Exception as db_error:
             print(f"[DEBUG] Database error in message endpoint: {db_error}")
             print(f"[DEBUG] Database error type: {type(db_error)}")
@@ -606,14 +621,14 @@ async def chat_endpoint(msg: Message):
             # Return a simple response if database fails
             return {"response": "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos momentos."}
 
-        async def set_state(new_state, choice=None, q1_val=None, q2_val=None, q3_val=None, q4_val=None, q5_val=None):
+        async def set_state(new_state, choice=None, q1_val=None, q2_val=None, q3_val=None, q4_val=None, q5_val=None, q6_val=None, q7_val=None, q8_val=None, q9_val=None, q10_val=None):
             try:
-                print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}")
+                print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
                 if state_row:
-                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "user_id": user_id})
+                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5, q6 = :q6, q7 = :q7, q8 = :q8, q9 = :q9, q10 = :q10 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val, "user_id": user_id})
                     print(f"[DEBUG] Updated existing state: {result}")
                 else:
-                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val})
+                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val})
                     print(f"[DEBUG] Created new state: {result}")
                 return result
             except Exception as e:
@@ -646,7 +661,7 @@ async def chat_endpoint(msg: Message):
         if message.lower() == greeting_triggers.get(msg.language, "saludo inicial"):
             print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
-            await set_state("greeting", None, None, None, None, None, None)
+            await set_state("greeting", None, None, None, None, None, None, None, None, None, None, None)
             if msg.language == "en":
                 response = (
                     "<p><strong>Hello, I'm Eldric</strong>, your emotional coach. I'm here to help you understand yourself better through attachment theory.</p>"
@@ -687,7 +702,7 @@ async def chat_endpoint(msg: Message):
         greeting_triggers_list = list(greeting_triggers.values())
         if message.lower() in test_triggers and message.lower() not in greeting_triggers_list:
             print("[DEBUG] FORCE START TEST (message in test_triggers)")
-            await set_state("q1", None, None, None, None, None, None)
+            await set_state("q1", None, None, None, None, None, None, None, None, None, None, None)
             questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
             question = questions[0]
             
@@ -710,7 +725,7 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] In greeting state, user chose: {message.upper()}")
             if message.upper() == "A":
                 # Start test
-                await set_state("q1", None, None, None, None, None, None)
+                await set_state("q1", None, None, None, None, None, None, None, None, None, None, None)
                 questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
                 question = questions[0]
                 
@@ -726,7 +741,7 @@ async def chat_endpoint(msg: Message):
                 response += "</ul>"
             elif message.upper() == "B":
                 # Normal conversation about feelings
-                await set_state("conversation", None, None, None, None, None, None)
+                await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
                 if msg.language == "en":
                     response = "<p>I understand, sometimes we need to talk about what we feel before taking tests. How do you feel today? Is there something specific you'd like to share or explore together?</p>"
                 elif msg.language == "ru":
@@ -735,7 +750,7 @@ async def chat_endpoint(msg: Message):
                     response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
             elif message.upper() == "C":
                 # Normal conversation about attachment
-                await set_state("conversation", None, None, None, None, None, None)
+                await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
                 if msg.language == "en":
                     response = (
                         "<p>Of course! Attachment is how we learned to relate since we were babies. Our first bonds with our caregivers taught us patterns that we repeat in our adult relationships.</p>"
@@ -786,22 +801,22 @@ async def chat_endpoint(msg: Message):
             
             # Store the answer
             if state == "q1":
-                await set_state("q2", message.upper(), selected_option['text'], q2, q3, q4, q5)
+                await set_state("q2", message.upper(), selected_option['text'], q2, q3, q4, q5, q6, q7, q8, q9, q10)
             elif state == "q2":
-                await set_state("q3", message.upper(), q1, selected_option['text'], q3, q4, q5)
+                await set_state("q3", message.upper(), q1, selected_option['text'], q3, q4, q5, q6, q7, q8, q9, q10)
             elif state == "q3":
-                await set_state("q4", message.upper(), q1, q2, selected_option['text'], q4, q5)
+                await set_state("q4", message.upper(), q1, q2, selected_option['text'], q4, q5, q6, q7, q8, q9, q10)
             elif state == "q4":
-                await set_state("q5", message.upper(), q1, q2, q3, selected_option['text'], q5)
+                await set_state("q5", message.upper(), q1, q2, q3, selected_option['text'], q5, q6, q7, q8, q9, q10)
             elif state == "q5":
                 # This is the last question, calculate results
-                await set_state("results", message.upper(), q1, q2, q3, q4, selected_option['text'])
+                await set_state("results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 
                 # Calculate scores
                 scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
                 
                 # Get all answers
-                answers = [q1, q2, q3, q4, selected_option['text']]
+                answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
                 
                 for i, answer in enumerate(answers):
                     if answer:
@@ -862,7 +877,7 @@ async def chat_endpoint(msg: Message):
                     )
                 
                 # Reset to conversation state after showing results, but keep the answers
-                await set_state("post_test", None, q1, q2, q3, q4, selected_option['text'])
+                await set_state("post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 return {"response": response}
             
             # Show next question
@@ -890,7 +905,7 @@ async def chat_endpoint(msg: Message):
             
             # Get the user's test results to provide personalized responses
             scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
-            answers = [q1, q2, q3, q4, q5]
+            answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
             
             questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
             for i, answer in enumerate(answers):
@@ -1039,7 +1054,7 @@ async def chat_endpoint(msg: Message):
             )
 
         print(f"[DEBUG] user_id={msg.user_id} message={msg.message} state={state}")
-        print(f"[DEBUG] State details: last_choice={last_choice}, q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}")
+        print(f"[DEBUG] State details: last_choice={last_choice}, q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={q10}")
         print(f"[DEBUG] Response length: {len(response) if response else 0}")
         print(f"[DEBUG] Current state: {state}, Message: '{message}', Response preview: {response[:100] if response else 'None'}...")
 
