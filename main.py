@@ -804,20 +804,14 @@ async def chat_endpoint(msg: Message):
             next_state = f"q{current_question_index + 2}"
             if current_question_index < len(questions) - 1:
                 # Guardar respuesta y avanzar a la siguiente pregunta
-                set_state_args = [None] * 11
-                set_state_args[current_question_index] = selected_option['text']
-                await set_state(next_state, message.upper(), *[
-                    q1 if i != 0 else set_state_args[0],
-                    q2 if i != 1 else set_state_args[1],
-                    q3 if i != 2 else set_state_args[2],
-                    q4 if i != 3 else set_state_args[3],
-                    q5 if i != 4 else set_state_args[4],
-                    q6 if i != 5 else set_state_args[5],
-                    q7 if i != 6 else set_state_args[6],
-                    q8 if i != 7 else set_state_args[7],
-                    q9 if i != 8 else set_state_args[8],
-                    q10 if i != 9 else set_state_args[9],
-                ])
+                prev_answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+                new_answers = []
+                for idx in range(10):
+                    if idx == current_question_index:
+                        new_answers.append(selected_option['text'])
+                    else:
+                        new_answers.append(prev_answers[idx])
+                await set_state(next_state, message.upper(), *new_answers)
                 next_question = questions[current_question_index + 1]
                 if msg.language == "en":
                     response = f"<p><strong>Question {current_question_index + 2} of 10:</strong> {next_question['question']}</p><ul>"
