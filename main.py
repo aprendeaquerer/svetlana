@@ -336,8 +336,9 @@ class Message(BaseModel):
     language: str = "es"  # Default to Spanish
 
 class User(BaseModel):
-    user_id: str
-    password: str
+    user_id: str = None
+    password: str = None
+    email: str = None
 
 # Global chatbot instances for each user
 user_chatbots = {}
@@ -449,7 +450,8 @@ async def startup():
         await database.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
-                hashed_password TEXT
+                hashed_password TEXT,
+                email TEXT
             )
         """)
         await database.execute("""
@@ -547,21 +549,37 @@ async def status():
 async def register(user: User):
     if database is None:
         raise HTTPException(status_code=503, detail="Database service unavailable")
-    hashed_password = pwd_context.hash(user.password)
-    query = "INSERT INTO users (user_id, hashed_password) VALUES (:user_id, :hashed_password)"
-    await database.execute(query, values={"user_id": user.user_id, "hashed_password": hashed_password})
-    return {"message": f"User {user.user_id} registered successfully!"}
+    # Permitir registro con solo email, solo password, o ambos
+    hashed_password = pwd_context.hash(user.password) if user.password else None
+    # Si no hay user_id, pero hay email, usar email como user_id
+    user_id = user.user_id or user.email
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Se requiere user_id o email")
+    # Insertar usuario
+    query = "INSERT INTO users (user_id, hashed_password, email) VALUES (:user_id, :hashed_password, :email)"
+    try:
+        await database.execute(query, values={"user_id": user_id, "hashed_password": hashed_password, "email": user.email})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al registrar usuario: {e}")
+    return {"message": f"Usuario {user_id} registrado correctamente!"}
 
 @app.post("/login")
 async def login(user: User):
     if database is None:
         raise HTTPException(status_code=503, detail="Database service unavailable")
-    query = "SELECT hashed_password FROM users WHERE user_id = :user_id"
-    stored_user = await database.fetch_one(query, values={"user_id": user.user_id})
-    if stored_user and pwd_context.verify(user.password, stored_user["hashed_password"]):
-        return {"message": f"User {user.user_id} logged in successfully!"}
+    # Permitir login por user_id o email
+    if user.user_id:
+        query = "SELECT hashed_password FROM users WHERE user_id = :user_id"
+        stored_user = await database.fetch_one(query, values={"user_id": user.user_id})
+    elif user.email:
+        query = "SELECT hashed_password FROM users WHERE email = :email"
+        stored_user = await database.fetch_one(query, values={"email": user.email})
     else:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=400, detail="Se requiere user_id o email para login")
+    if stored_user and user.password and pwd_context.verify(user.password, stored_user["hashed_password"]):
+        return {"message": f"Login correcto!"}
+    else:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
 @app.post("/message")
 async def chat_endpoint(msg: Message):
