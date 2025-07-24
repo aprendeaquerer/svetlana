@@ -48,4 +48,20 @@ send_button.pack(side=tk.RIGHT)
 # Allow pressing Enter to send message
 window.bind('<Return>', lambda event: send_message())
 
+def send_saludo_inicial():
+    saludo = "saludo inicial"
+    chat_area.config(state='normal')
+    chat_area.insert(tk.END, f"Tú: {saludo}\n")
+    chat_area.config(state='disabled')
+
+    response = chatbot.chat(saludo)
+
+    chat_area.config(state='normal')
+    chat_area.insert(tk.END, f"Eldric: {response}\n\n")
+    chat_area.see(tk.END)
+    chat_area.config(state='disabled')
+
+# Llama al saludo inicial al abrir la ventana
+send_saludo_inicial()
+
 window.mainloop()
