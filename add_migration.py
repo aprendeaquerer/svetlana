@@ -61,6 +61,29 @@ async def migrate_database():
         print(f"[DEBUG] (migración) email ya existe o error benigno: {e}")
     return True
 
+async def migrate_user_profile(database):
+    await database.execute('''
+        CREATE TABLE IF NOT EXISTS user_profile (
+            user_id TEXT PRIMARY KEY,
+            nombre TEXT,
+            edad INTEGER,
+            tiene_pareja BOOLEAN,
+            nombre_pareja TEXT,
+            estado_emocional TEXT,
+            estado_relacion TEXT,
+            opinion_apego TEXT,
+            fecha_ultima_conversacion TIMESTAMP,
+            fecha_ultima_mencion_pareja TIMESTAMP,
+            attachment_style TEXT
+        )
+    ''')
+    # Intentar agregar la columna si la tabla ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN attachment_style TEXT')
+    except Exception:
+        pass  # Ya existe
+    return True
+
 if __name__ == "__main__":
     asyncio.run(main())
     asyncio.run(migrate_database()) 
