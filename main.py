@@ -429,18 +429,23 @@ async def startup():
         # Run migration to ensure test_state table has all required columns
         try:
             print("[DEBUG] Running database migration...")
-            from add_migration import migrate_database, migrate_user_profile
+            from add_migration import migrate_database, migrate_user_profile, migrate_test_state_style
             migration_success = await migrate_database()
             if migration_success:
                 print("[DEBUG] Database migration completed successfully")
             else:
                 print("[DEBUG] Database migration failed, but continuing...")
-            # Migrar tabla de perfil de usuario
             user_profile_success = await migrate_user_profile(database)
             if user_profile_success:
                 print("[DEBUG] User profile table migration completed successfully")
             else:
                 print("[DEBUG] User profile table migration failed, but continuing...")
+            # NUEVO: migrar columna style en test_state
+            test_state_style_success = await migrate_test_state_style(database)
+            if test_state_style_success:
+                print("[DEBUG] test_state style column migration completed successfully")
+            else:
+                print("[DEBUG] test_state style column migration failed, but continuing...")
         except Exception as e:
             print(f"[DEBUG] Migration error (continuing anyway): {e}")
         
@@ -707,6 +712,16 @@ async def chat_endpoint(msg: Message):
         chatbot.reset()
         # Use language-specific prompt
         current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
+        # NUEVO: Incluir el estilo de apego si existe en test_state
+        style_row = await database.fetch_one("SELECT style FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+        user_style = style_row["style"] if style_row and style_row["style"] else None
+        if user_style:
+            style_instruction = (
+                f"\n\nINSTRUCCIÓN INTERNA: El usuario tiene un estilo de apego '{user_style}'. "
+                f"Adapta tus respuestas, consejos y tono a este estilo, pero NO lo menciones explícitamente a menos que el usuario lo pida o la conversación lo requiera. "
+                f"Personaliza tus preguntas y sugerencias para que sean relevantes para alguien con este estilo."
+            )
+            current_prompt += style_instruction
         chatbot.messages.append({"role": "system", "content": current_prompt})
         print(f"[DEBUG] Chatbot reset and prompt set successfully")
 
@@ -724,6 +739,34 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             await set_state("greeting", None, None, None, None, None, None, None, None, None, None, None)
+            user_profile = await get_user_profile(user_id)
+            # --- NUEVO: Si el usuario ya hizo el test, saludar de forma cálida y sugerir continuar la conversación anterior ---
+            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+            test_completed = False
+            if state_row:
+                # Consideramos que el test está hecho si hay respuestas en q10
+                test_completed = bool(state_row.get("q10"))
+            if user_profile and user_profile.get("nombre") and test_completed:
+                nombre = user_profile["nombre"]
+                # Leer historial reciente
+                history = await load_conversation_history(user_id, limit=10)
+                # Generar resumen del último tema
+                last_user_msg = next((m["content"] for m in reversed(history) if m["role"] == "user"), None)
+                last_bot_msg = next((m["content"] for m in reversed(history) if m["role"] == "assistant"), None)
+                resumen = ""
+                if last_user_msg:
+                    resumen += f"La última vez mencionaste: '{last_user_msg[:100]}...' "
+                if last_bot_msg:
+                    resumen += f"Mi respuesta anterior fue: '{last_bot_msg[:100]}...' "
+                if msg.language == "en":
+                    response = f"<p>Welcome back, {nombre}! It's great to see you again. {resumen}Would you like to continue our previous conversation or talk about something new?</p>"
+                elif msg.language == "ru":
+                    response = f"<p>С возвращением, {nombre}! Рад снова тебя видеть. {resumen}Хочешь продолжить прошлый разговор или обсудить что-то новое?</p>"
+                else:
+                    response = f"<p>¡Hola de nuevo, {nombre}! Me alegra verte otra vez. {resumen}¿Te gustaría continuar la conversación anterior o hablar de algo nuevo?</p>"
+                await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                return {"response": response}
+            # --- FIN NUEVO ---
             if msg.language == "en":
                 response = (
                     "<p><strong>Hello, I'm Eldric</strong>, your emotional coach. I'm here to help you understand yourself better through attachment theory.</p>"
@@ -806,6 +849,38 @@ async def chat_endpoint(msg: Message):
                 await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
                 # --- NUEVO: Chequear y pedir datos personales si faltan ---
                 user_profile = await get_user_profile(user_id)
+                # --- NUEVO: Intentar parsear la respuesta del usuario para extraer datos personales ---
+                nombre, edad, tiene_pareja, nombre_pareja = None, None, None, None
+                # Nombre: palabra después de 'me llamo' o 'soy'
+                m = re.search(r"me llamo ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+                if not m:
+                    m = re.search(r"soy ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+                if m:
+                    nombre = m.group(1)
+                # Edad: número de 1 o 2 dígitos
+                m = re.search(r"(\d{1,2}) ?(años|año|anios|anios|years|год|лет)", message, re.IGNORECASE)
+                if m:
+                    edad = int(m.group(1))
+                # Pareja: sí/no
+                if re.search(r"pareja.*si|tengo pareja|casado|novia|novio|esposa|esposo|marido|mujer", message, re.IGNORECASE):
+                    tiene_pareja = True
+                elif re.search(r"no tengo pareja|soltero|sin pareja|no", message, re.IGNORECASE):
+                    tiene_pareja = False
+                # Nombre de pareja: después de 'se llama' o 'mi pareja es'
+                m = re.search(r"se llama ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+                if not m:
+                    m = re.search(r"mi pareja es ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+                if m:
+                    nombre_pareja = m.group(1)
+                # Si se extrajo algún dato, guardar en user_profile
+                if any([nombre, edad, tiene_pareja is not None, nombre_pareja]):
+                    await save_user_profile(user_id,
+                        nombre=nombre or (user_profile["nombre"] if user_profile else None),
+                        edad=edad or (user_profile["edad"] if user_profile else None),
+                        tiene_pareja=tiene_pareja if tiene_pareja is not None else (user_profile["tiene_pareja"] if user_profile else None),
+                        nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None)
+                    )
+                    user_profile = await get_user_profile(user_id)
                 missing = []
                 if not user_profile or not user_profile.get("nombre"):
                     missing.append("nombre")
@@ -815,9 +890,7 @@ async def chat_endpoint(msg: Message):
                     missing.append("tiene_pareja")
                 if (user_profile and user_profile.get("tiene_pareja")) and not user_profile.get("nombre_pareja"):
                     missing.append("nombre_pareja")
-                # Puedes agregar más campos aquí si lo deseas
                 if missing:
-                    # Preguntar de forma natural por los datos que faltan (frase simple, luego se mejora el tono)
                     preguntas = []
                     if "nombre" in missing:
                         preguntas.append("¿Cómo te llamas?")
@@ -926,6 +999,8 @@ async def chat_endpoint(msg: Message):
                 style_description = get_style_description(predominant_style, msg.language)
                 # Guardar el estilo de apego en el perfil del usuario
                 await save_user_profile(user_id, attachment_style=predominant_style)
+                # NUEVO: guardar el resultado del test en test_state.style
+                await database.execute("UPDATE test_state SET style = :style WHERE user_id = :user_id", {"style": predominant_style, "user_id": user_id})
                 if msg.language == "en":
                     response = (
                         f"<p><strong>Test Results</strong></p>"
@@ -976,6 +1051,33 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] User message: '{message}'")
             # --- NUEVO: Chequear y pedir datos personales si faltan tras el test ---
             user_profile = await get_user_profile(user_id)
+            # --- NUEVO: Intentar parsear la respuesta del usuario para extraer datos personales ---
+            nombre, edad, tiene_pareja, nombre_pareja = None, None, None, None
+            m = re.search(r"me llamo ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+            if not m:
+                m = re.search(r"soy ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+            if m:
+                nombre = m.group(1)
+            m = re.search(r"(\d{1,2}) ?(años|año|anios|anios|years|год|лет)", message, re.IGNORECASE)
+            if m:
+                edad = int(m.group(1))
+            if re.search(r"pareja.*si|tengo pareja|casado|novia|novio|esposa|esposo|marido|mujer", message, re.IGNORECASE):
+                tiene_pareja = True
+            elif re.search(r"no tengo pareja|soltero|sin pareja|no", message, re.IGNORECASE):
+                tiene_pareja = False
+            m = re.search(r"se llama ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+            if not m:
+                m = re.search(r"mi pareja es ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
+            if m:
+                nombre_pareja = m.group(1)
+            if any([nombre, edad, tiene_pareja is not None, nombre_pareja]):
+                await save_user_profile(user_id,
+                    nombre=nombre or (user_profile["nombre"] if user_profile else None),
+                    edad=edad or (user_profile["edad"] if user_profile else None),
+                    tiene_pareja=tiene_pareja if tiene_pareja is not None else (user_profile["tiene_pareja"] if user_profile else None),
+                    nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None)
+                )
+                user_profile = await get_user_profile(user_id)
             missing = []
             if not user_profile or not user_profile.get("nombre"):
                 missing.append("nombre")
@@ -996,10 +1098,8 @@ async def chat_endpoint(msg: Message):
                 if "nombre_pareja" in missing:
                     preguntas.append("¿Cómo se llama tu pareja?")
                 response = " ".join(preguntas)
-                # Guardar respuestas personales si el usuario responde a estas preguntas
-                # (La lógica de parseo y guardado se puede mejorar en la siguiente iteración)
+                asked_personal_data.add(user_id)
             else:
-                # ... (resto de la lógica post_test original)
                 # Get the user's test results to provide personalized responses
                 scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
@@ -1062,7 +1162,17 @@ async def chat_endpoint(msg: Message):
                         f"NO ofrezcas el test de nuevo - acaba de completarlo. Céntrate en explicar sus resultados y ayudarle a entender sus patrones. "
                         f"Usa el conocimiento proporcionado abajo para enriquecer tus respuestas con ideas específicas de la teoría del apego."
                     )
-                    # ... resto de la lógica post_test original ...
+                # Inject knowledge into the post-test prompt
+                enhanced_post_test_prompt = inject_knowledge_into_prompt(post_test_prompt, relevant_knowledge)
+                print(f"[DEBUG] Enhanced post-test prompt length: {len(enhanced_post_test_prompt)}")
+                print(f"[DEBUG] Enhanced post-test prompt preview: {enhanced_post_test_prompt[:500]}...")
+                # Reset chatbot with enhanced personalized prompt and conversation history
+                chatbot.reset()
+                chatbot.messages.append({"role": "system", "content": enhanced_post_test_prompt})
+                # Add conversation history for context
+                for msg_history in conversation_history:
+                    chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
+                response = await run_in_threadpool(chatbot.chat, message)
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
