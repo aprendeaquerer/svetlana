@@ -1077,13 +1077,24 @@ async def chat_endpoint(msg: Message):
                     m = re.search(r"mi pareja es ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
                 if m:
                     nombre_pareja = m.group(1)
+                # Tiempo con pareja: buscar patrones como "X años", "X meses", "desde X"
+                m = re.search(r"(\d+)\s*(años|año|meses|mes|días|día)", message, re.IGNORECASE)
+                if not m:
+                    m = re.search(r"desde\s+(\d{4})", message, re.IGNORECASE)
+                    if m:
+                        # Calcular años desde la fecha
+                        current_year = datetime.datetime.now().year
+                        tiempo_pareja = f"{current_year - int(m.group(1))} años"
+                elif m:
+                    tiempo_pareja = f"{m.group(1)} {m.group(2)}"
                 # Si se extrajo algún dato, guardar en user_profile
-                if any([nombre, edad, tiene_pareja is not None, nombre_pareja]):
+                if any([nombre, edad, tiene_pareja is not None, nombre_pareja, tiempo_pareja]):
                     await save_user_profile(user_id,
                         nombre=nombre or (user_profile["nombre"] if user_profile else None),
                         edad=edad or (user_profile["edad"] if user_profile else None),
                         tiene_pareja=tiene_pareja if tiene_pareja is not None else (user_profile["tiene_pareja"] if user_profile else None),
-                        nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None)
+                        nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None),
+                        tiempo_pareja=tiempo_pareja or (user_profile["tiempo_pareja"] if user_profile else None)
                     )
                     user_profile = await get_user_profile(user_id)
                 missing = []
@@ -1275,12 +1286,23 @@ async def chat_endpoint(msg: Message):
                 m = re.search(r"mi pareja es ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
             if m:
                 nombre_pareja = m.group(1)
-            if any([nombre, edad, tiene_pareja is not None, nombre_pareja]):
+            # Tiempo con pareja: buscar patrones como "X años", "X meses", "desde X"
+            m = re.search(r"(\d+)\s*(años|año|meses|mes|días|día)", message, re.IGNORECASE)
+            if not m:
+                m = re.search(r"desde\s+(\d{4})", message, re.IGNORECASE)
+                if m:
+                    # Calcular años desde la fecha
+                    current_year = datetime.datetime.now().year
+                    tiempo_pareja = f"{current_year - int(m.group(1))} años"
+            elif m:
+                tiempo_pareja = f"{m.group(1)} {m.group(2)}"
+            if any([nombre, edad, tiene_pareja is not None, nombre_pareja, tiempo_pareja]):
                 await save_user_profile(user_id,
                     nombre=nombre or (user_profile["nombre"] if user_profile else None),
                     edad=edad or (user_profile["edad"] if user_profile else None),
                     tiene_pareja=tiene_pareja if tiene_pareja is not None else (user_profile["tiene_pareja"] if user_profile else None),
-                    nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None)
+                    nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None),
+                    tiempo_pareja=tiempo_pareja or (user_profile["tiempo_pareja"] if user_profile else None)
                 )
                 user_profile = await get_user_profile(user_id)
             missing = []
@@ -1292,6 +1314,8 @@ async def chat_endpoint(msg: Message):
                 missing.append("tiene_pareja")
             if (user_profile and user_profile.get("tiene_pareja")) and not user_profile.get("nombre_pareja"):
                 missing.append("nombre_pareja")
+            if (user_profile and user_profile.get("tiene_pareja")) and not user_profile.get("tiempo_pareja"):
+                missing.append("tiempo_pareja")
             if missing:
                 preguntas = []
                 if "nombre" in missing:
@@ -1302,6 +1326,8 @@ async def chat_endpoint(msg: Message):
                     preguntas.append("¿Tienes pareja? (sí/no)")
                 if "nombre_pareja" in missing:
                     preguntas.append("¿Cómo se llama tu pareja?")
+                if "tiempo_pareja" in missing and user_profile and user_profile.get("tiene_pareja"):
+                    preguntas.append("¿Cuánto tiempo llevas con tu pareja?")
                 response = " ".join(preguntas)
             else:
                 # Get the user's test results to provide personalized responses
@@ -1576,7 +1602,7 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
         return []
 
 # Funciones para guardar y recuperar datos personales del usuario
-async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None):
+async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, tiempo_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None):
     if not database or not database.is_connected:
         return False
     # Verificar si ya existe
@@ -1587,6 +1613,7 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
         "edad": edad,
         "tiene_pareja": tiene_pareja,
         "nombre_pareja": nombre_pareja,
+        "tiempo_pareja": tiempo_pareja,
         "estado_emocional": estado_emocional,
         "estado_relacion": estado_relacion,
         "opinion_apego": opinion_apego,
@@ -1602,6 +1629,7 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
                 edad = COALESCE(:edad, edad),
                 tiene_pareja = COALESCE(:tiene_pareja, tiene_pareja),
                 nombre_pareja = COALESCE(:nombre_pareja, nombre_pareja),
+                tiempo_pareja = COALESCE(:tiempo_pareja, tiempo_pareja),
                 estado_emocional = COALESCE(:estado_emocional, estado_emocional),
                 estado_relacion = COALESCE(:estado_relacion, estado_relacion),
                 opinion_apego = COALESCE(:opinion_apego, opinion_apego),
@@ -1613,8 +1641,8 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
     else:
         # Insert
         await database.execute("""
-            INSERT INTO user_profile (user_id, nombre, edad, tiene_pareja, nombre_pareja, estado_emocional, estado_relacion, opinion_apego, fecha_ultima_conversacion, fecha_ultima_mencion_pareja, attachment_style)
-            VALUES (:user_id, :nombre, :edad, :tiene_pareja, :nombre_pareja, :estado_emocional, :estado_relacion, :opinion_apego, :fecha_ultima_conversacion, :fecha_ultima_mencion_pareja, :attachment_style)
+            INSERT INTO user_profile (user_id, nombre, edad, tiene_pareja, nombre_pareja, tiempo_pareja, estado_emocional, estado_relacion, opinion_apego, fecha_ultima_conversacion, fecha_ultima_mencion_pareja, attachment_style)
+            VALUES (:user_id, :nombre, :edad, :tiene_pareja, :nombre_pareja, :tiempo_pareja, :estado_emocional, :estado_relacion, :opinion_apego, :fecha_ultima_conversacion, :fecha_ultima_mencion_pareja, :attachment_style)
         """, values)
     return True
 
