@@ -734,6 +734,7 @@ async def chat_endpoint(msg: Message):
             await set_state("greeting", None, None, None, None, None, None, None, None, None, None, None)
             # --- NUEVO: Saludo personalizado para recurrentes ---
             user_profile = await get_user_profile(user_id)
+            print(f"[DEBUG] User profile for personalized greeting: {user_profile}")
             if user_profile and user_profile.get("nombre"):
                 nombre = user_profile["nombre"]
                 nombre_pareja = user_profile.get("nombre_pareja")
@@ -769,6 +770,9 @@ async def chat_endpoint(msg: Message):
                         response += f" ¿Y cómo ha estado {nombre_pareja}?"
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                 return {"response": response}
+            else:
+                print(f"[DEBUG] Personalized greeting NOT triggered - user profile: {user_profile}")
+                print(f"[DEBUG] User has name: {user_profile.get('nombre') if user_profile else 'No profile'}")
             # --- FIN NUEVO ---
             if msg.language == "en":
                 response = (
