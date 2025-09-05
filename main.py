@@ -1275,6 +1275,40 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
             print(f"[DEBUG] This should NOT happen for first message with 'saludo inicial'")
             
+            # Check if user is asking about test results
+            if any(keyword in message.lower() for keyword in ["resultados", "resultado", "test", "prueba", "estilo de apego", "apego"]):
+                print(f"[DEBUG] User asking about test results, checking if test is completed...")
+                user_profile = await get_user_profile(user_id)
+                if user_profile and user_profile.get("estilo_apego"):
+                    print(f"[DEBUG] User has completed test, providing results...")
+                    estilo_apego = user_profile["estilo_apego"]
+                    puntuacion_seguro = user_profile.get("puntuacion_seguro", 0)
+                    puntuacion_ansioso = user_profile.get("puntuacion_ansioso", 0)
+                    puntuacion_evitativo = user_profile.get("puntuacion_evitativo", 0)
+                    
+                    response = f"¡Por supuesto! Recuerdo tus resultados del test de estilos de apego:\n\n"
+                    response += f"**Tu estilo de apego principal es: {estilo_apego}**\n\n"
+                    response += f"**Puntuaciones:**\n"
+                    response += f"• Apego Seguro: {puntuacion_seguro}/10\n"
+                    response += f"• Apego Ansioso: {puntuacion_ansioso}/10\n"
+                    response += f"• Apego Evitativo: {puntuacion_evitativo}/10\n\n"
+                    
+                    if estilo_apego == "Seguro":
+                        response += "Tienes un estilo de apego seguro, lo que significa que te sientes cómodo tanto con la intimidad como con la independencia en tus relaciones. Esto es una base muy sólida para construir relaciones saludables."
+                    elif estilo_apego == "Ansioso":
+                        response += "Tu estilo de apego es ansioso, lo que significa que valoras mucho la intimidad pero a veces te preocupas por la disponibilidad de tu pareja. Es importante trabajar en la comunicación y la confianza."
+                    elif estilo_apego == "Evitativo":
+                        response += "Tu estilo de apego es evitativo, lo que significa que valoras la independencia pero a veces evitas la intimidad. Puede ser útil explorar cómo abrirte más emocionalmente en tus relaciones."
+                    else:
+                        response += "Tienes un estilo de apego mixto, lo que es completamente normal. Cada persona tiene sus propias fortalezas y áreas de crecimiento en las relaciones."
+                    
+                    response += "\n\n¿Te gustaría hablar más sobre cómo este estilo de apego se manifiesta en tu relación actual?"
+                    return {"response": response}
+                else:
+                    print(f"[DEBUG] User hasn't completed test yet, suggesting to take it...")
+                    response = "Aún no has completado el test de estilos de apego. ¿Te gustaría tomarlo ahora? Solo necesitas escribir 'test' para comenzar."
+                    return {"response": response}
+            
             # Load conversation history for context
             conversation_history = await load_conversation_history(msg.user_id)
             print(f"[DEBUG] Loaded conversation history: {len(conversation_history)} messages")
