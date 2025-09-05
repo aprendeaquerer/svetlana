@@ -735,11 +735,18 @@ async def chat_endpoint(msg: Message):
             # --- NUEVO: Saludo personalizado para recurrentes ---
             user_profile = await get_user_profile(user_id)
             print(f"[DEBUG] User profile for personalized greeting: {user_profile}")
-            if user_profile and user_profile.get("nombre"):
-                nombre = user_profile["nombre"]
-                nombre_pareja = user_profile.get("nombre_pareja")
-                fecha_ultima = user_profile.get("fecha_ultima_conversacion")
-                estado_emocional = user_profile.get("estado_emocional")
+            
+            # Check if user has conversation history (for personalized greeting)
+            history = await load_conversation_history(user_id, limit=20)
+            print(f"[DEBUG] Conversation history for personalized greeting: {len(history)} messages")
+            
+            if history and len(history) > 0:
+                # Get user info from profile if available
+                nombre = user_profile.get("nombre") if user_profile else None
+                nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
+                estado_emocional = user_profile.get("estado_emocional") if user_profile else None
+                
                 fecha_str = ""
                 if fecha_ultima:
                     try:
@@ -748,13 +755,14 @@ async def chat_endpoint(msg: Message):
                         fecha_str = f" desde el {fecha_ultima.strftime('%d/%m/%Y')}"
                     except Exception:
                         fecha_str = ""
-                # Cargar historial reciente para IA
-                history = await load_conversation_history(user_id, limit=20)
+                
+                # Create personalized greeting prompt based on conversation history
                 saludo_prompt = (
-                    f"Eres Eldric, un coach emocional cálido y cercano. Vas a saludar a un usuario recurrente llamado {nombre}. "
-                    + (f"Su pareja se llama {nombre_pareja}. " if nombre_pareja else "")
-                    + (f"Su estado emocional anterior era: {estado_emocional}. " if estado_emocional else "")
-                    + f"La última conversación fue{fecha_str}. "
+                    f"Eres Eldric, un coach emocional cálido y cercano. Vas a saludar a un usuario recurrente"
+                    + (f" llamado {nombre}" if nombre else "")
+                    + (f". Su pareja se llama {nombre_pareja}" if nombre_pareja else "")
+                    + (f". Su estado emocional anterior era: {estado_emocional}" if estado_emocional else "")
+                    + f". La última conversación fue{fecha_str}. "
                     "Lee el siguiente historial y genera un saludo cálido y una o dos preguntas de seguimiento personalizadas, retomando temas, emociones o personas mencionadas. "
                     "No ofrezcas el test ni menú, solo retoma la relación y muestra interés genuino.\n\n"
                     "Historial:\n" +
@@ -765,14 +773,18 @@ async def chat_endpoint(msg: Message):
                     saludo_ia = await run_in_threadpool(chatbot.chat, saludo_prompt)
                     response = saludo_ia
                 else:
-                    response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                    if nombre_pareja:
-                        response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                    if nombre:
+                        response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                        if nombre_pareja:
+                            response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                    else:
+                        response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                 return {"response": response}
             else:
-                print(f"[DEBUG] Personalized greeting NOT triggered - user profile: {user_profile}")
-                print(f"[DEBUG] User has name: {user_profile.get('nombre') if user_profile else 'No profile'}")
+                print(f"[DEBUG] Personalized greeting NOT triggered - no conversation history found")
+                print(f"[DEBUG] User profile: {user_profile}")
+                print(f"[DEBUG] Conversation history: {len(history)} messages")
             # --- FIN NUEVO ---
             if msg.language == "en":
                 response = (
