@@ -619,26 +619,33 @@ async def chat_endpoint(msg: Message):
                 primer_mensaje_dia = True
         # Si es el primer mensaje del día, generar saludo IA
         if primer_mensaje_dia:
-            print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado IA...")
-            history = await load_conversation_history(user_id, limit=20)
-            # Crear prompt para la IA
-            resumen_prompt = (
-                "Eres un asistente que ayuda a un coach emocional a dar seguimiento personalizado. "
-                "Lee el siguiente historial de conversación y extrae: 1) nombres de personas mencionadas, 2) temas o emociones importantes, 3) preguntas abiertas o temas sin resolver. "
-                "Devuelve un resumen breve y una o dos preguntas de seguimiento cálidas y personales para retomar la conversación hoy.\n\n"
-                "Historial:\n" +
-                "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
-                "\n\nResumen y preguntas de seguimiento:" 
-            )
-            # Usar ChatGPT para obtener el resumen y preguntas
-            if chatbot:
-                resumen_ia = await run_in_threadpool(chatbot.chat, resumen_prompt)
-                response = resumen_ia
-            else:
-                response = "¡Hola de nuevo! ¿Cómo has estado desde nuestra última conversación? Cuéntame si hubo algún cambio o algo que quieras compartir hoy."
-            # Actualizar la fecha de última conversación
-            await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
-            return {"response": response}
+            try:
+                print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado IA...")
+                history = await load_conversation_history(user_id, limit=20)
+                # Crear prompt para la IA
+                resumen_prompt = (
+                    "Eres un asistente que ayuda a un coach emocional a dar seguimiento personalizado. "
+                    "Lee el siguiente historial de conversación y extrae: 1) nombres de personas mencionadas, 2) temas o emociones importantes, 3) preguntas abiertas o temas sin resolver. "
+                    "Devuelve un resumen breve y una o dos preguntas de seguimiento cálidas y personales para retomar la conversación hoy.\n\n"
+                    "Historial:\n" +
+                    "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
+                    "\n\nResumen y preguntas de seguimiento:" 
+                )
+                # Usar ChatGPT para obtener el resumen y preguntas
+                if chatbot:
+                    resumen_ia = await run_in_threadpool(chatbot.chat, resumen_prompt)
+                    response = resumen_ia
+                else:
+                    response = "¡Hola de nuevo! ¿Cómo has estado desde nuestra última conversación? Cuéntame si hubo algún cambio o algo que quieras compartir hoy."
+                # Actualizar la fecha de última conversación
+                await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                return {"response": response}
+            except Exception as e:
+                print(f"[DEBUG] Error generating AI summary for registered user: {e}")
+                import traceback
+                print(f"[DEBUG] AI summary error traceback: {traceback.format_exc()}")
+                # Fall back to normal greeting if AI summary fails
+                print("[DEBUG] Falling back to normal greeting due to AI summary error")
 
         # Get or initialize test state
         try:
