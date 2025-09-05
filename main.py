@@ -1181,6 +1181,12 @@ async def chat_endpoint(msg: Message):
             
             # Load conversation history for context
             conversation_history = await load_conversation_history(msg.user_id)
+            print(f"[DEBUG] Loaded conversation history: {len(conversation_history)} messages")
+            if conversation_history:
+                print(f"[DEBUG] First message in history: {conversation_history[0]}")
+                print(f"[DEBUG] Last message in history: {conversation_history[-1]}")
+            else:
+                print(f"[DEBUG] No conversation history found for user {msg.user_id}")
             
             # Extract keywords and get relevant knowledge for non-test messages
             keywords = extract_keywords(message, msg.language)
@@ -1202,9 +1208,13 @@ async def chat_endpoint(msg: Message):
             chatbot.messages.append({"role": "system", "content": enhanced_prompt})
             
             # Add conversation history for context
-            for msg_history in conversation_history:
+            print(f"[DEBUG] Adding {len(conversation_history)} messages to chatbot context")
+            for i, msg_history in enumerate(conversation_history):
                 chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
+                if i < 3:  # Log first 3 messages for debugging
+                    print(f"[DEBUG] Added message {i+1}: {msg_history['role']}: {msg_history['content'][:100]}...")
             
+            print(f"[DEBUG] Total chatbot messages before chat: {len(chatbot.messages)}")
             response = await run_in_threadpool(chatbot.chat, message)
 
         # Fallback for greeting state: prompt user to choose A, B, or C
