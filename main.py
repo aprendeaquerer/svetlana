@@ -593,7 +593,10 @@ user_context_cache = {}
 
 async def load_user_context(user_id):
     """Load and cache all user context data (test results, profile, conversation history)"""
+    print(f"[DEBUG] Checking cache for user_id: {user_id}")
+    print(f"[DEBUG] Cache keys: {list(user_context_cache.keys())}")
     if user_id in user_context_cache:
+        print(f"[DEBUG] Using cached context for {user_id}")
         return user_context_cache[user_id]
     
     print(f"[DEBUG] Loading user context for {user_id}...")
@@ -618,6 +621,7 @@ async def load_user_context(user_id):
     
     # Calculate test results if test is completed
     test_results = None
+    print(f"[DEBUG] Test answers for {user_id}: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={q10}")
     if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
         print(f"[DEBUG] Calculating test results for {user_id}...")
         scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
@@ -857,7 +861,11 @@ async def chat_endpoint(msg: Message):
         async def set_state(new_state, choice=None, q1_val=None, q2_val=None, q3_val=None, q4_val=None, q5_val=None, q6_val=None, q7_val=None, q8_val=None, q9_val=None, q10_val=None):
             try:
                 print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
-                if state_row:
+                
+                # Check if user already has a state record
+                existing_state = await database.fetch_one("SELECT user_id FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+                
+                if existing_state:
                     result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5, q6 = :q6, q7 = :q7, q8 = :q8, q9 = :q9, q10 = :q10 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val, "user_id": user_id})
                     print(f"[DEBUG] Updated existing state: {result}")
                 else:
