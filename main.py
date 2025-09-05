@@ -844,7 +844,7 @@ async def chat_endpoint(msg: Message):
                     
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                     # Change state to conversation so user can have normal conversations
-                    await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
+                    await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                     return {"response": response}
                 except Exception as e:
                     print(f"[DEBUG] Error in auto-greeting: {e}")
@@ -908,7 +908,8 @@ async def chat_endpoint(msg: Message):
         if message.lower() == greeting_triggers.get(msg.language, "saludo inicial"):
             print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
-            await set_state("greeting", None, None, None, None, None, None, None, None, None, None, None)
+            # Preserve existing test answers when resetting to greeting state
+            await set_state("greeting", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
             # --- NUEVO: Saludo personalizado para recurrentes ---
             user_profile = await get_user_profile(user_id)
             print(f"[DEBUG] User profile for personalized greeting: {user_profile}")
@@ -958,7 +959,7 @@ async def chat_endpoint(msg: Message):
                         response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                 # Change state to conversation so user can have normal conversations
-                await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
+                await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 return {"response": response}
             else:
                 print(f"[DEBUG] Personalized greeting NOT triggered - no conversation history found")
@@ -1044,7 +1045,7 @@ async def chat_endpoint(msg: Message):
                 response += "</ul>"
             elif message.upper() == "B":
                 # Normal conversation about feelings
-                await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
+                await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 # --- NUEVO: Chequear y pedir datos personales si faltan ---
                 user_profile = await get_user_profile(user_id)
                 # --- NUEVO: Intentar parsear la respuesta del usuario para extraer datos personales ---
@@ -1108,7 +1109,7 @@ async def chat_endpoint(msg: Message):
                         response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
             elif message.upper() == "C":
                 # Normal conversation about attachment
-                await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
+                await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 if msg.language == "en":
                     response = (
                         "<p>Of course! Attachment is how we learned to relate since we were babies. Our first bonds with our caregivers taught us patterns that we repeat in our adult relationships.</p>"
