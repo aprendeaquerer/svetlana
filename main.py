@@ -1279,30 +1279,44 @@ async def chat_endpoint(msg: Message):
             if any(keyword in message.lower() for keyword in ["resultados", "resultado", "test", "prueba", "estilo de apego", "apego"]):
                 print(f"[DEBUG] User asking about test results, checking if test is completed...")
                 user_profile = await get_user_profile(user_id)
-                if user_profile and user_profile.get("estilo_apego"):
-                    print(f"[DEBUG] User has completed test, providing results...")
-                    estilo_apego = user_profile["estilo_apego"]
-                    puntuacion_seguro = user_profile.get("puntuacion_seguro", 0)
-                    puntuacion_ansioso = user_profile.get("puntuacion_ansioso", 0)
-                    puntuacion_evitativo = user_profile.get("puntuacion_evitativo", 0)
+                
+                # Check if user has completed test by looking at test answers (q1-q10)
+                test_completed = any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10])
+                print(f"[DEBUG] Test completed check: {test_completed} (q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={q10})")
+                
+                if test_completed:
+                    print(f"[DEBUG] User has completed test, calculating results...")
+                    
+                    # Calculate attachment style from test answers
+                    scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+                    answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+                    questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
+                    
+                    for i, answer in enumerate(answers):
+                        if answer and i < len(questions):
+                            question_options = questions[i]['options']
+                            for option in question_options:
+                                if option['text'] == answer:
+                                    for style, score in option['scores'].items():
+                                        scores[style] += score
+                                    break
+                    
+                    predominant_style = calculate_attachment_style(scores)
+                    style_description = get_style_description(predominant_style, msg.language)
+                    
+                    # Get scores from profile if available, otherwise calculate
+                    puntuacion_seguro = user_profile.get("puntuacion_seguro", scores.get("secure", 0)) if user_profile else scores.get("secure", 0)
+                    puntuacion_ansioso = user_profile.get("puntuacion_ansioso", scores.get("anxious", 0)) if user_profile else scores.get("anxious", 0)
+                    puntuacion_evitativo = user_profile.get("puntuacion_evitativo", scores.get("avoidant", 0)) if user_profile else scores.get("avoidant", 0)
                     
                     response = f"¡Por supuesto! Recuerdo tus resultados del test de estilos de apego:\n\n"
-                    response += f"**Tu estilo de apego principal es: {estilo_apego}**\n\n"
+                    response += f"**Tu estilo de apego principal es: {predominant_style.title()}**\n\n"
                     response += f"**Puntuaciones:**\n"
                     response += f"• Apego Seguro: {puntuacion_seguro}/10\n"
                     response += f"• Apego Ansioso: {puntuacion_ansioso}/10\n"
                     response += f"• Apego Evitativo: {puntuacion_evitativo}/10\n\n"
-                    
-                    if estilo_apego == "Seguro":
-                        response += "Tienes un estilo de apego seguro, lo que significa que te sientes cómodo tanto con la intimidad como con la independencia en tus relaciones. Esto es una base muy sólida para construir relaciones saludables."
-                    elif estilo_apego == "Ansioso":
-                        response += "Tu estilo de apego es ansioso, lo que significa que valoras mucho la intimidad pero a veces te preocupas por la disponibilidad de tu pareja. Es importante trabajar en la comunicación y la confianza."
-                    elif estilo_apego == "Evitativo":
-                        response += "Tu estilo de apego es evitativo, lo que significa que valoras la independencia pero a veces evitas la intimidad. Puede ser útil explorar cómo abrirte más emocionalmente en tus relaciones."
-                    else:
-                        response += "Tienes un estilo de apego mixto, lo que es completamente normal. Cada persona tiene sus propias fortalezas y áreas de crecimiento en las relaciones."
-                    
-                    response += "\n\n¿Te gustaría hablar más sobre cómo este estilo de apego se manifiesta en tu relación actual?"
+                    response += f"**Descripción:** {style_description}\n\n"
+                    response += "¿Te gustaría hablar más sobre cómo este estilo de apego se manifiesta en tu relación actual?"
                     return {"response": response}
                 else:
                     print(f"[DEBUG] User hasn't completed test yet, suggesting to take it...")
@@ -1321,12 +1335,32 @@ async def chat_endpoint(msg: Message):
             # Get user profile and test results for personalized context
             user_profile = await get_user_profile(user_id)
             test_context = ""
-            if user_profile and user_profile.get("estilo_apego"):
+            
+            # Check if user has completed test by looking at test answers (q1-q10)
+            test_completed = any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10])
+            if test_completed:
                 print(f"[DEBUG] User has completed test, adding test context...")
-                estilo_apego = user_profile["estilo_apego"]
-                puntuacion_seguro = user_profile.get("puntuacion_seguro", 0)
-                puntuacion_ansioso = user_profile.get("puntuacion_ansioso", 0)
-                puntuacion_evitativo = user_profile.get("puntuacion_evitativo", 0)
+                
+                # Calculate attachment style from test answers
+                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+                answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+                questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
+                
+                for i, answer in enumerate(answers):
+                    if answer and i < len(questions):
+                        question_options = questions[i]['options']
+                        for option in question_options:
+                            if option['text'] == answer:
+                                for style, score in option['scores'].items():
+                                    scores[style] += score
+                                break
+                
+                predominant_style = calculate_attachment_style(scores)
+                
+                # Get scores from profile if available, otherwise calculate
+                puntuacion_seguro = user_profile.get("puntuacion_seguro", scores.get("secure", 0)) if user_profile else scores.get("secure", 0)
+                puntuacion_ansioso = user_profile.get("puntuacion_ansioso", scores.get("anxious", 0)) if user_profile else scores.get("anxious", 0)
+                puntuacion_evitativo = user_profile.get("puntuacion_evitativo", scores.get("avoidant", 0)) if user_profile else scores.get("avoidant", 0)
                 
                 # Get test answers for more context
                 test_answers = []
@@ -1343,7 +1377,7 @@ async def chat_endpoint(msg: Message):
                 
                 test_context = f"""
 INFORMACIÓN DEL USUARIO (IMPORTANTE - USA ESTO PARA PERSONALIZAR TUS RESPUESTAS):
-- Estilo de apego principal: {estilo_apego}
+- Estilo de apego principal: {predominant_style.title()}
 - Puntuaciones: Seguro {puntuacion_seguro}/10, Ansioso {puntuacion_ansioso}/10, Evitativo {puntuacion_evitativo}/10
 - Respuestas del test: {', '.join(test_answers) if test_answers else 'No disponibles'}
 
