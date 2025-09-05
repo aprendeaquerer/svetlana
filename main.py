@@ -429,23 +429,18 @@ async def startup():
         # Run migration to ensure test_state table has all required columns
         try:
             print("[DEBUG] Running database migration...")
-            from add_migration import migrate_database, migrate_user_profile, migrate_test_state_style
+            from add_migration import migrate_database, migrate_user_profile
             migration_success = await migrate_database()
             if migration_success:
                 print("[DEBUG] Database migration completed successfully")
             else:
                 print("[DEBUG] Database migration failed, but continuing...")
+            # Migrar tabla de perfil de usuario
             user_profile_success = await migrate_user_profile(database)
             if user_profile_success:
                 print("[DEBUG] User profile table migration completed successfully")
             else:
                 print("[DEBUG] User profile table migration failed, but continuing...")
-            # NUEVO: migrar columna style en test_state
-            test_state_style_success = await migrate_test_state_style(database)
-            if test_state_style_success:
-                print("[DEBUG] test_state style column migration completed successfully")
-            else:
-                print("[DEBUG] test_state style column migration failed, but continuing...")
         except Exception as e:
             print(f"[DEBUG] Migration error (continuing anyway): {e}")
         
@@ -605,22 +600,23 @@ async def chat_endpoint(msg: Message):
         print(f"[DEBUG] message: '{message}'")
         print(f"[DEBUG] language: {msg.language}")
 
-        # --- NUEVO: Detectar primer mensaje del día ---
-        user_profile = await get_user_profile(user_id)
-        hoy = datetime.date.today()
+        # --- NUEVO: Detectar primer mensaje del día (solo para usuarios registrados) ---
         primer_mensaje_dia = False
-        if user_profile and user_profile.get("fecha_ultima_conversacion"):
-            try:
-                fecha_ultima = user_profile["fecha_ultima_conversacion"]
-                if isinstance(fecha_ultima, str):
-                    fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
-                if fecha_ultima.date() < hoy:
+        if user_id != "invitado":  # Solo para usuarios registrados, no invitados
+            user_profile = await get_user_profile(user_id)
+            hoy = datetime.date.today()
+            if user_profile and user_profile.get("fecha_ultima_conversacion"):
+                try:
+                    fecha_ultima = user_profile["fecha_ultima_conversacion"]
+                    if isinstance(fecha_ultima, str):
+                        fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
+                    if fecha_ultima.date() < hoy:
+                        primer_mensaje_dia = True
+                except Exception as e:
+                    print(f"[DEBUG] Error parsing fecha_ultima_conversacion: {e}")
                     primer_mensaje_dia = True
-            except Exception as e:
-                print(f"[DEBUG] Error parsing fecha_ultima_conversacion: {e}")
+            elif user_profile:
                 primer_mensaje_dia = True
-        elif user_profile:
-            primer_mensaje_dia = True
         # Si es el primer mensaje del día, generar saludo IA
         if primer_mensaje_dia:
             print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado IA...")
@@ -712,16 +708,6 @@ async def chat_endpoint(msg: Message):
         chatbot.reset()
         # Use language-specific prompt
         current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
-        # NUEVO: Incluir el estilo de apego si existe en test_state
-        style_row = await database.fetch_one("SELECT style FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
-        user_style = style_row["style"] if style_row and style_row["style"] else None
-        if user_style:
-            style_instruction = (
-                f"\n\nINSTRUCCIÓN INTERNA: El usuario tiene un estilo de apego '{user_style}'. "
-                f"Adapta tus respuestas, consejos y tono a este estilo, pero NO lo menciones explícitamente a menos que el usuario lo pida o la conversación lo requiera. "
-                f"Personaliza tus preguntas y sugerencias para que sean relevantes para alguien con este estilo."
-            )
-            current_prompt += style_instruction
         chatbot.messages.append({"role": "system", "content": current_prompt})
         print(f"[DEBUG] Chatbot reset and prompt set successfully")
 
@@ -739,31 +725,41 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             await set_state("greeting", None, None, None, None, None, None, None, None, None, None, None)
+            # --- NUEVO: Saludo personalizado para recurrentes ---
             user_profile = await get_user_profile(user_id)
-            # --- NUEVO: Si el usuario ya hizo el test, saludar de forma cálida y sugerir continuar la conversación anterior ---
-            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
-            test_completed = False
-            if state_row:
-                # Consideramos que el test está hecho si hay respuestas en q10
-                test_completed = bool(state_row.get("q10"))
-            if user_profile and user_profile.get("nombre") and test_completed:
+            if user_profile and user_profile.get("nombre"):
                 nombre = user_profile["nombre"]
-                # Leer historial reciente
-                history = await load_conversation_history(user_id, limit=10)
-                # Generar resumen del último tema
-                last_user_msg = next((m["content"] for m in reversed(history) if m["role"] == "user"), None)
-                last_bot_msg = next((m["content"] for m in reversed(history) if m["role"] == "assistant"), None)
-                resumen = ""
-                if last_user_msg:
-                    resumen += f"La última vez mencionaste: '{last_user_msg[:100]}...' "
-                if last_bot_msg:
-                    resumen += f"Mi respuesta anterior fue: '{last_bot_msg[:100]}...' "
-                if msg.language == "en":
-                    response = f"<p>Welcome back, {nombre}! It's great to see you again. {resumen}Would you like to continue our previous conversation or talk about something new?</p>"
-                elif msg.language == "ru":
-                    response = f"<p>С возвращением, {nombre}! Рад снова тебя видеть. {resumen}Хочешь продолжить прошлый разговор или обсудить что-то новое?</p>"
+                nombre_pareja = user_profile.get("nombre_pareja")
+                fecha_ultima = user_profile.get("fecha_ultima_conversacion")
+                estado_emocional = user_profile.get("estado_emocional")
+                fecha_str = ""
+                if fecha_ultima:
+                    try:
+                        if isinstance(fecha_ultima, str):
+                            fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
+                        fecha_str = f" desde el {fecha_ultima.strftime('%d/%m/%Y')}"
+                    except Exception:
+                        fecha_str = ""
+                # Cargar historial reciente para IA
+                history = await load_conversation_history(user_id, limit=20)
+                saludo_prompt = (
+                    f"Eres Eldric, un coach emocional cálido y cercano. Vas a saludar a un usuario recurrente llamado {nombre}. "
+                    + (f"Su pareja se llama {nombre_pareja}. " if nombre_pareja else "")
+                    + (f"Su estado emocional anterior era: {estado_emocional}. " if estado_emocional else "")
+                    + f"La última conversación fue{fecha_str}. "
+                    "Lee el siguiente historial y genera un saludo cálido y una o dos preguntas de seguimiento personalizadas, retomando temas, emociones o personas mencionadas. "
+                    "No ofrezcas el test ni menú, solo retoma la relación y muestra interés genuino.\n\n"
+                    "Historial:\n" +
+                    "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
+                    "\n\nSaludo y preguntas de seguimiento:"
+                )
+                if chatbot:
+                    saludo_ia = await run_in_threadpool(chatbot.chat, saludo_prompt)
+                    response = saludo_ia
                 else:
-                    response = f"<p>¡Hola de nuevo, {nombre}! Me alegra verte otra vez. {resumen}¿Te gustaría continuar la conversación anterior o hablar de algo nuevo?</p>"
+                    response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                    if nombre_pareja:
+                        response += f" ¿Y cómo ha estado {nombre_pareja}?"
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                 return {"response": response}
             # --- FIN NUEVO ---
@@ -999,8 +995,6 @@ async def chat_endpoint(msg: Message):
                 style_description = get_style_description(predominant_style, msg.language)
                 # Guardar el estilo de apego en el perfil del usuario
                 await save_user_profile(user_id, attachment_style=predominant_style)
-                # NUEVO: guardar el resultado del test en test_state.style
-                await database.execute("UPDATE test_state SET style = :style WHERE user_id = :user_id", {"style": predominant_style, "user_id": user_id})
                 if msg.language == "en":
                     response = (
                         f"<p><strong>Test Results</strong></p>"
