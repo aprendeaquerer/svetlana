@@ -588,6 +588,94 @@ async def login(user: User):
     else:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
+# Global user context cache to store loaded user data
+user_context_cache = {}
+
+async def load_user_context(user_id):
+    """Load and cache all user context data (test results, profile, conversation history)"""
+    if user_id in user_context_cache:
+        return user_context_cache[user_id]
+    
+    print(f"[DEBUG] Loading user context for {user_id}...")
+    
+    # Get test state
+    state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+    state = state_row["state"] if state_row else None
+    last_choice = state_row["last_choice"] if state_row else None
+    q1 = state_row["q1"] if state_row else None
+    q2 = state_row["q2"] if state_row else None
+    q3 = state_row["q3"] if state_row else None
+    q4 = state_row["q4"] if state_row else None
+    q5 = state_row["q5"] if state_row else None
+    q6 = state_row["q6"] if state_row else None
+    q7 = state_row["q7"] if state_row else None
+    q8 = state_row["q8"] if state_row else None
+    q9 = state_row["q9"] if state_row else None
+    q10 = state_row["q10"] if state_row else None
+    
+    # Get user profile
+    user_profile = await get_user_profile(user_id)
+    
+    # Calculate test results if test is completed
+    test_results = None
+    if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
+        print(f"[DEBUG] Calculating test results for {user_id}...")
+        scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+        answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+        questions = TEST_QUESTIONS.get("es", TEST_QUESTIONS["es"])
+        
+        for i, answer in enumerate(answers):
+            if answer and i < len(questions):
+                question_options = questions[i]['options']
+                for option in question_options:
+                    if option['text'] == answer:
+                        for style, score in option['scores'].items():
+                            scores[style] += score
+                        break
+        
+        predominant_style = calculate_attachment_style(scores)
+        style_description = get_style_description(predominant_style, "es")
+        
+        test_results = {
+            "completed": True,
+            "style": predominant_style,
+            "description": style_description,
+            "scores": scores,
+            "answers": {
+                "q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5,
+                "q6": q6, "q7": q7, "q8": q8, "q9": q9, "q10": q10
+            }
+        }
+    else:
+        test_results = {"completed": False}
+    
+    # Load conversation history
+    conversation_history = await load_conversation_history(user_id, limit=20)
+    
+    # Create comprehensive user context
+    user_context = {
+        "user_id": user_id,
+        "state": state,
+        "last_choice": last_choice,
+        "user_profile": user_profile,
+        "test_results": test_results,
+        "conversation_history": conversation_history,
+        "loaded_at": datetime.datetime.now()
+    }
+    
+    # Cache the context
+    user_context_cache[user_id] = user_context
+    
+    print(f"[DEBUG] User context loaded for {user_id}: test_completed={test_results['completed']}, style={test_results.get('style', 'N/A')}, history_messages={len(conversation_history)}")
+    
+    return user_context
+
+def clear_user_context_cache(user_id):
+    """Clear cached user context when data changes"""
+    if user_id in user_context_cache:
+        del user_context_cache[user_id]
+        print(f"[DEBUG] Cleared user context cache for {user_id}")
+
 @app.post("/message")
 async def chat_endpoint(msg: Message):
     response = None  # Always initialize response
@@ -648,42 +736,38 @@ async def chat_endpoint(msg: Message):
                 # Fall back to normal greeting if AI summary fails
                 print("[DEBUG] Falling back to normal greeting due to AI summary error")
 
-        # Get or initialize test state
+        # Load user context (cached for efficiency)
         try:
             print(f"[DEBUG] Database check - database is None: {database is None}")
             if database is None:
                 print("[DEBUG] Database is None, returning error")
                 return {"response": "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."}
             
-            print(f"[DEBUG] Attempting database query...")
-            state_row = await database.fetch_one("SELECT state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
-            state = state_row["state"] if state_row else None
-            last_choice = state_row["last_choice"] if state_row else None
-            q1 = state_row["q1"] if state_row else None
-            q2 = state_row["q2"] if state_row else None
-            q3 = state_row["q3"] if state_row else None
-            q4 = state_row["q4"] if state_row else None
-            q5 = state_row["q5"] if state_row else None
-            q6 = state_row["q6"] if state_row else None
-            q7 = state_row["q7"] if state_row else None
-            q8 = state_row["q8"] if state_row else None
-            q9 = state_row["q9"] if state_row else None
-            q10 = state_row["q10"] if state_row else None
+            # Load comprehensive user context
+            user_context = await load_user_context(user_id)
+            state = user_context["state"]
+            last_choice = user_context["last_choice"]
+            user_profile = user_context["user_profile"]
+            test_results = user_context["test_results"]
+            conversation_history = user_context["conversation_history"]
             
-            print(f"[DEBUG] Database query successful")
-            print(f"[DEBUG] Database query result: {state_row}")
-            print(f"[DEBUG] Retrieved state: {state}")
-            print(f"[DEBUG] Retrieved last_choice: {last_choice}")
-            print(f"[DEBUG] Retrieved q1: {q1}")
-            print(f"[DEBUG] Retrieved q2: {q2}")
-            print(f"[DEBUG] Retrieved q3: {q3}")
-            print(f"[DEBUG] Retrieved q4: {q4}")
-            print(f"[DEBUG] Retrieved q5: {q5}")
-            print(f"[DEBUG] Retrieved q6: {q6}")
-            print(f"[DEBUG] Retrieved q7: {q7}")
-            print(f"[DEBUG] Retrieved q8: {q8}")
-            print(f"[DEBUG] Retrieved q9: {q9}")
-            print(f"[DEBUG] Retrieved q10: {q10}")
+            # Extract test answers for backward compatibility
+            q1 = test_results["answers"]["q1"] if test_results["completed"] else None
+            q2 = test_results["answers"]["q2"] if test_results["completed"] else None
+            q3 = test_results["answers"]["q3"] if test_results["completed"] else None
+            q4 = test_results["answers"]["q4"] if test_results["completed"] else None
+            q5 = test_results["answers"]["q5"] if test_results["completed"] else None
+            q6 = test_results["answers"]["q6"] if test_results["completed"] else None
+            q7 = test_results["answers"]["q7"] if test_results["completed"] else None
+            q8 = test_results["answers"]["q8"] if test_results["completed"] else None
+            q9 = test_results["answers"]["q9"] if test_results["completed"] else None
+            q10 = test_results["answers"]["q10"] if test_results["completed"] else None
+            
+            print(f"[DEBUG] User context loaded successfully")
+            print(f"[DEBUG] State: {state}")
+            print(f"[DEBUG] Test completed: {test_results['completed']}")
+            print(f"[DEBUG] Test style: {test_results.get('style', 'N/A')}")
+            print(f"[DEBUG] Conversation history: {len(conversation_history)} messages")
             
             # --- NUEVO: Auto-greeting para usuarios con historial (cualquier mensaje) ---
             auto_greeting = False
@@ -779,6 +863,10 @@ async def chat_endpoint(msg: Message):
                 else:
                     result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val})
                     print(f"[DEBUG] Created new state: {result}")
+                
+                # Clear user context cache when state changes
+                clear_user_context_cache(user_id)
+                
                 return result
             except Exception as e:
                 print(f"Error setting state: {e}")
@@ -1277,44 +1365,21 @@ async def chat_endpoint(msg: Message):
             
             # Check if user is asking about test results
             if any(keyword in message.lower() for keyword in ["resultados", "resultado", "test", "prueba", "estilo de apego", "apego"]):
-                print(f"[DEBUG] User asking about test results, checking if test is completed...")
-                user_profile = await get_user_profile(user_id)
+                print(f"[DEBUG] User asking about test results...")
                 
-                # Check if user has completed test by looking at test answers (q1-q10)
-                test_completed = any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10])
-                print(f"[DEBUG] Test completed check: {test_completed} (q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={q10})")
-                
-                if test_completed:
-                    print(f"[DEBUG] User has completed test, calculating results...")
+                if test_results["completed"]:
+                    print(f"[DEBUG] User has completed test, providing cached results...")
                     
-                    # Calculate attachment style from test answers
-                    scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
-                    answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
-                    questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
-                    
-                    for i, answer in enumerate(answers):
-                        if answer and i < len(questions):
-                            question_options = questions[i]['options']
-                            for option in question_options:
-                                if option['text'] == answer:
-                                    for style, score in option['scores'].items():
-                                        scores[style] += score
-                                    break
-                    
-                    predominant_style = calculate_attachment_style(scores)
-                    style_description = get_style_description(predominant_style, msg.language)
-                    
-                    # Get scores from profile if available, otherwise calculate
-                    puntuacion_seguro = user_profile.get("puntuacion_seguro", scores.get("secure", 0)) if user_profile else scores.get("secure", 0)
-                    puntuacion_ansioso = user_profile.get("puntuacion_ansioso", scores.get("anxious", 0)) if user_profile else scores.get("anxious", 0)
-                    puntuacion_evitativo = user_profile.get("puntuacion_evitativo", scores.get("avoidant", 0)) if user_profile else scores.get("avoidant", 0)
+                    predominant_style = test_results["style"]
+                    style_description = test_results["description"]
+                    scores = test_results["scores"]
                     
                     response = f"¡Por supuesto! Recuerdo tus resultados del test de estilos de apego:\n\n"
                     response += f"**Tu estilo de apego principal es: {predominant_style.title()}**\n\n"
                     response += f"**Puntuaciones:**\n"
-                    response += f"• Apego Seguro: {puntuacion_seguro}/10\n"
-                    response += f"• Apego Ansioso: {puntuacion_ansioso}/10\n"
-                    response += f"• Apego Evitativo: {puntuacion_evitativo}/10\n\n"
+                    response += f"• Apego Seguro: {scores.get('secure', 0)}/10\n"
+                    response += f"• Apego Ansioso: {scores.get('anxious', 0)}/10\n"
+                    response += f"• Apego Evitativo: {scores.get('avoidant', 0)}/10\n\n"
                     response += f"**Descripción:** {style_description}\n\n"
                     response += "¿Te gustaría hablar más sobre cómo este estilo de apego se manifiesta en tu relación actual?"
                     return {"response": response}
@@ -1323,62 +1388,34 @@ async def chat_endpoint(msg: Message):
                     response = "Aún no has completado el test de estilos de apego. ¿Te gustaría tomarlo ahora? Solo necesitas escribir 'test' para comenzar."
                     return {"response": response}
             
-            # Load conversation history for context
-            conversation_history = await load_conversation_history(msg.user_id)
-            print(f"[DEBUG] Loaded conversation history: {len(conversation_history)} messages")
+            # Use cached conversation history and test context
+            print(f"[DEBUG] Using cached conversation history: {len(conversation_history)} messages")
             if conversation_history:
                 print(f"[DEBUG] First message in history: {conversation_history[0]}")
                 print(f"[DEBUG] Last message in history: {conversation_history[-1]}")
             else:
                 print(f"[DEBUG] No conversation history found for user {msg.user_id}")
             
-            # Get user profile and test results for personalized context
-            user_profile = await get_user_profile(user_id)
+            # Create test context from cached data
             test_context = ""
-            
-            # Check if user has completed test by looking at test answers (q1-q10)
-            test_completed = any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10])
-            if test_completed:
-                print(f"[DEBUG] User has completed test, adding test context...")
+            if test_results["completed"]:
+                print(f"[DEBUG] User has completed test, adding cached test context...")
                 
-                # Calculate attachment style from test answers
-                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
-                answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
-                questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
-                
-                for i, answer in enumerate(answers):
-                    if answer and i < len(questions):
-                        question_options = questions[i]['options']
-                        for option in question_options:
-                            if option['text'] == answer:
-                                for style, score in option['scores'].items():
-                                    scores[style] += score
-                                break
-                
-                predominant_style = calculate_attachment_style(scores)
-                
-                # Get scores from profile if available, otherwise calculate
-                puntuacion_seguro = user_profile.get("puntuacion_seguro", scores.get("secure", 0)) if user_profile else scores.get("secure", 0)
-                puntuacion_ansioso = user_profile.get("puntuacion_ansioso", scores.get("anxious", 0)) if user_profile else scores.get("anxious", 0)
-                puntuacion_evitativo = user_profile.get("puntuacion_evitativo", scores.get("avoidant", 0)) if user_profile else scores.get("avoidant", 0)
+                predominant_style = test_results["style"]
+                scores = test_results["scores"]
+                answers = test_results["answers"]
                 
                 # Get test answers for more context
                 test_answers = []
-                if q1: test_answers.append(f"Pregunta 1: {q1}")
-                if q2: test_answers.append(f"Pregunta 2: {q2}")
-                if q3: test_answers.append(f"Pregunta 3: {q3}")
-                if q4: test_answers.append(f"Pregunta 4: {q4}")
-                if q5: test_answers.append(f"Pregunta 5: {q5}")
-                if q6: test_answers.append(f"Pregunta 6: {q6}")
-                if q7: test_answers.append(f"Pregunta 7: {q7}")
-                if q8: test_answers.append(f"Pregunta 8: {q8}")
-                if q9: test_answers.append(f"Pregunta 9: {q9}")
-                if q10: test_answers.append(f"Pregunta 10: {q10}")
+                for i in range(1, 11):
+                    answer = answers.get(f"q{i}")
+                    if answer:
+                        test_answers.append(f"Pregunta {i}: {answer}")
                 
                 test_context = f"""
 INFORMACIÓN DEL USUARIO (IMPORTANTE - USA ESTO PARA PERSONALIZAR TUS RESPUESTAS):
 - Estilo de apego principal: {predominant_style.title()}
-- Puntuaciones: Seguro {puntuacion_seguro}/10, Ansioso {puntuacion_ansioso}/10, Evitativo {puntuacion_evitativo}/10
+- Puntuaciones: Seguro {scores.get('secure', 0)}/10, Ansioso {scores.get('anxious', 0)}/10, Evitativo {scores.get('avoidant', 0)}/10
 - Respuestas del test: {', '.join(test_answers) if test_answers else 'No disponibles'}
 
 IMPORTANTE: Considera este estilo de apego y las respuestas del usuario al dar consejos y respuestas. Adapta tu lenguaje y sugerencias según su perfil de apego.
