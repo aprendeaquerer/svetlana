@@ -1002,11 +1002,17 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Set initial greeting response (forced): {response[:100]}...")
             return {"response": response}
         # Always handle test triggers as a hard reset to test start (but not greeting triggers)
-        test_triggers = ["quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
+        test_triggers = ["test", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
         greeting_triggers_list = list(greeting_triggers.values())
         if message.lower() in test_triggers and message.lower() not in greeting_triggers_list:
             print("[DEBUG] FORCE START TEST (message in test_triggers)")
-            await set_state("q1", None, None, None, None, None, None, None, None, None, None, None)
+            # Check if user already has test answers - if so, preserve them
+            if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
+                print("[DEBUG] User already has test answers, preserving them")
+                await set_state("q1", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            else:
+                print("[DEBUG] Starting fresh test, clearing answers")
+                await set_state("q1", None, None, None, None, None, None, None, None, None, None, None)
             questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
             question = questions[0]
             
