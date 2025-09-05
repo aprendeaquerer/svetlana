@@ -618,17 +618,8 @@ async def chat_endpoint(msg: Message):
             elif user_profile:
                 primer_mensaje_dia = True
         
-        # --- NUEVO: Auto-greeting para usuarios con historial (cualquier mensaje) ---
-        auto_greeting = False
-        if user_id != "invitado" and not primer_mensaje_dia:
-            # Check if user has conversation history and is in greeting state
-            history = await load_conversation_history(user_id, limit=5)
-            if history and len(history) > 0 and state == "greeting":
-                auto_greeting = True
-                print("[DEBUG] Auto-greeting triggered for returning user with history")
-        
         # Si es el primer mensaje del día, generar saludo IA
-        if primer_mensaje_dia or auto_greeting:
+        if primer_mensaje_dia:
             try:
                 print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado IA...")
                 history = await load_conversation_history(user_id, limit=20)
@@ -693,6 +684,84 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Retrieved q8: {q8}")
             print(f"[DEBUG] Retrieved q9: {q9}")
             print(f"[DEBUG] Retrieved q10: {q10}")
+            
+            # --- NUEVO: Auto-greeting para usuarios con historial (cualquier mensaje) ---
+            auto_greeting = False
+            if user_id != "invitado" and not primer_mensaje_dia and state == "greeting":
+                # Check if user has conversation history and is in greeting state
+                history = await load_conversation_history(user_id, limit=5)
+                if history and len(history) > 0:
+                    auto_greeting = True
+                    print("[DEBUG] Auto-greeting triggered for returning user with history")
+            
+            # Si es auto-greeting, generar saludo personalizado
+            if auto_greeting:
+                try:
+                    print("[DEBUG] Auto-greeting detected, generating personalized greeting...")
+                    history = await load_conversation_history(user_id, limit=20)
+                    # Crear prompt para la IA
+                    resumen_prompt = (
+                        "Eres un asistente que ayuda a un coach emocional a dar seguimiento personalizado. "
+                        "Lee el siguiente historial de conversación y extrae: 1) nombres de personas mencionadas, 2) temas o emociones importantes, 3) preguntas abiertas o temas sin resolver. "
+                        "Devuelve un resumen breve y una o dos preguntas de seguimiento cálidas y personales para retomar la conversación hoy.\n\n"
+                        "Historial de conversación:\n" + "\n".join([f"{msg['role']}: {msg['content']}" for msg in history])
+                    )
+                    
+                    if chatbot:
+                        # Generar resumen con IA
+                        resumen_response = await run_in_threadpool(chatbot.chat, resumen_prompt)
+                        print(f"[DEBUG] AI summary generated: {resumen_response[:200]}...")
+                        
+                        # Crear saludo personalizado basado en el resumen
+                        saludo_prompt = (
+                            f"Basándote en este resumen de conversaciones anteriores, crea un saludo cálido y personalizado para retomar la conversación:\n\n"
+                            f"Resumen: {resumen_response}\n\n"
+                            f"Crea un saludo que: 1) Sea cálido y personal, 2) Mencione algo específico de conversaciones anteriores, 3) Pregunte cómo está el usuario hoy, 4) Sea breve (máximo 2-3 oraciones)."
+                        )
+                        
+                        response = await run_in_threadpool(chatbot.chat, saludo_prompt)
+                        print(f"[DEBUG] Personalized greeting generated: {response[:200]}...")
+                    else:
+                        # Fallback si no hay chatbot
+                        user_profile = await get_user_profile(user_id)
+                        nombre = user_profile.get("nombre") if user_profile else None
+                        nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                        fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
+                        
+                        # Calcular tiempo transcurrido
+                        fecha_str = ""
+                        if fecha_ultima:
+                            try:
+                                if isinstance(fecha_ultima, str):
+                                    fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
+                                dias = (datetime.datetime.now() - fecha_ultima).days
+                                if dias == 0:
+                                    fecha_str = " hoy"
+                                elif dias == 1:
+                                    fecha_str = " ayer"
+                                elif dias < 7:
+                                    fecha_str = f" hace {dias} días"
+                                else:
+                                    fecha_str = f" hace {dias} días"
+                            except Exception as e:
+                                print(f"[DEBUG] Error calculating time difference: {e}")
+                        
+                        # Crear saludo personalizado
+                        if nombre:
+                            response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                            if nombre_pareja:
+                                response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                        else:
+                            response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                    
+                    await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                    # Change state to conversation so user can have normal conversations
+                    await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
+                    return {"response": response}
+                except Exception as e:
+                    print(f"[DEBUG] Error in auto-greeting: {e}")
+                    # Continue with normal flow if auto-greeting fails
+                    
         except Exception as db_error:
             print(f"[DEBUG] Database error in message endpoint: {db_error}")
             print(f"[DEBUG] Database error type: {type(db_error)}")
