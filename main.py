@@ -1115,7 +1115,6 @@ async def chat_endpoint(msg: Message):
                 if "nombre_pareja" in missing:
                     preguntas.append("¿Cómo se llama tu pareja?")
                 response = " ".join(preguntas)
-                asked_personal_data.add(user_id)
             else:
                 # Get the user's test results to provide personalized responses
                 scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
