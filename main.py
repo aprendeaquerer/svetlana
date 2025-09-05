@@ -866,9 +866,11 @@ async def chat_endpoint(msg: Message):
                 existing_state = await database.fetch_one("SELECT user_id FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
                 
                 if existing_state:
+                    print(f"[DEBUG] Updating existing state with values: state={new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
                     result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5, q6 = :q6, q7 = :q7, q8 = :q8, q9 = :q9, q10 = :q10 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val, "user_id": user_id})
                     print(f"[DEBUG] Updated existing state: {result}")
                 else:
+                    print(f"[DEBUG] Creating new state with values: state={new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
                     result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val})
                     print(f"[DEBUG] Created new state: {result}")
                 
@@ -1180,6 +1182,7 @@ async def chat_endpoint(msg: Message):
                 response += "</ul>"
             else:
                 # Última pregunta respondida, calcular resultados
+                print(f"[DEBUG] Saving test completion: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
                 await set_state("results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text']]
@@ -1237,6 +1240,7 @@ async def chat_endpoint(msg: Message):
                         f"</ul>"
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
+                print(f"[DEBUG] Moving to post_test state: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
                 await set_state("post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 return {"response": response}
         # Handle post-test conversation (user just finished test)
