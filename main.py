@@ -617,8 +617,18 @@ async def chat_endpoint(msg: Message):
                     primer_mensaje_dia = True
             elif user_profile:
                 primer_mensaje_dia = True
+        
+        # --- NUEVO: Auto-greeting para usuarios con historial (cualquier mensaje) ---
+        auto_greeting = False
+        if user_id != "invitado" and not primer_mensaje_dia:
+            # Check if user has conversation history and is in greeting state
+            history = await load_conversation_history(user_id, limit=5)
+            if history and len(history) > 0 and state == "greeting":
+                auto_greeting = True
+                print("[DEBUG] Auto-greeting triggered for returning user with history")
+        
         # Si es el primer mensaje del día, generar saludo IA
-        if primer_mensaje_dia:
+        if primer_mensaje_dia or auto_greeting:
             try:
                 print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado IA...")
                 history = await load_conversation_history(user_id, limit=20)
@@ -780,6 +790,8 @@ async def chat_endpoint(msg: Message):
                     else:
                         response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                # Change state to conversation so user can have normal conversations
+                await set_state("conversation", None, None, None, None, None, None, None, None, None, None, None)
                 return {"response": response}
             else:
                 print(f"[DEBUG] Personalized greeting NOT triggered - no conversation history found")
