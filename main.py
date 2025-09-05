@@ -1318,6 +1318,39 @@ async def chat_endpoint(msg: Message):
             else:
                 print(f"[DEBUG] No conversation history found for user {msg.user_id}")
             
+            # Get user profile and test results for personalized context
+            user_profile = await get_user_profile(user_id)
+            test_context = ""
+            if user_profile and user_profile.get("estilo_apego"):
+                print(f"[DEBUG] User has completed test, adding test context...")
+                estilo_apego = user_profile["estilo_apego"]
+                puntuacion_seguro = user_profile.get("puntuacion_seguro", 0)
+                puntuacion_ansioso = user_profile.get("puntuacion_ansioso", 0)
+                puntuacion_evitativo = user_profile.get("puntuacion_evitativo", 0)
+                
+                # Get test answers for more context
+                test_answers = []
+                if q1: test_answers.append(f"Pregunta 1: {q1}")
+                if q2: test_answers.append(f"Pregunta 2: {q2}")
+                if q3: test_answers.append(f"Pregunta 3: {q3}")
+                if q4: test_answers.append(f"Pregunta 4: {q4}")
+                if q5: test_answers.append(f"Pregunta 5: {q5}")
+                if q6: test_answers.append(f"Pregunta 6: {q6}")
+                if q7: test_answers.append(f"Pregunta 7: {q7}")
+                if q8: test_answers.append(f"Pregunta 8: {q8}")
+                if q9: test_answers.append(f"Pregunta 9: {q9}")
+                if q10: test_answers.append(f"Pregunta 10: {q10}")
+                
+                test_context = f"""
+INFORMACIÓN DEL USUARIO (IMPORTANTE - USA ESTO PARA PERSONALIZAR TUS RESPUESTAS):
+- Estilo de apego principal: {estilo_apego}
+- Puntuaciones: Seguro {puntuacion_seguro}/10, Ansioso {puntuacion_ansioso}/10, Evitativo {puntuacion_evitativo}/10
+- Respuestas del test: {', '.join(test_answers) if test_answers else 'No disponibles'}
+
+IMPORTANTE: Considera este estilo de apego y las respuestas del usuario al dar consejos y respuestas. Adapta tu lenguaje y sugerencias según su perfil de apego.
+"""
+                print(f"[DEBUG] Test context added: {len(test_context)} characters")
+            
             # Extract keywords and get relevant knowledge for non-test messages
             keywords = extract_keywords(message, msg.language)
             print(f"[DEBUG] Message: '{message}'")
@@ -1328,8 +1361,8 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
             print(f"[DEBUG] Knowledge content: {relevant_knowledge}")
             
-            # Inject knowledge into the prompt
-            enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge)
+            # Inject knowledge and test context into the prompt
+            enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge + test_context)
             print(f"[DEBUG] Enhanced prompt length: {len(enhanced_prompt)}")
             print(f"[DEBUG] Enhanced prompt preview: {enhanced_prompt[:500]}...")
             
