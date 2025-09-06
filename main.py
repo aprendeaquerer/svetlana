@@ -960,12 +960,34 @@ async def chat_endpoint(msg: Message):
             print("[DEBUG] Chatbot is None, returning error")
             return {"response": "Lo siento, el servicio de chat no está disponible en este momento. Por favor, intenta de nuevo más tarde."}
 
-        print(f"[DEBUG] Resetting chatbot...")
-        chatbot.reset()
-        # Use language-specific prompt
-        current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
-        chatbot.messages.append({"role": "system", "content": current_prompt})
-        print(f"[DEBUG] Chatbot reset and prompt set successfully")
+        # Only reset chatbot for specific triggers, not for normal conversations
+        should_reset = False
+        greeting_triggers = {
+            "es": "saludo inicial",
+            "en": "initial greeting", 
+            "ru": "начальное приветствие"
+        }
+        test_triggers = ["test", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
+        
+        if (message.lower() == greeting_triggers.get(msg.language, "saludo inicial") or 
+            message.lower() in test_triggers):
+            should_reset = True
+            print(f"[DEBUG] Resetting chatbot for trigger: {message}")
+        else:
+            print(f"[DEBUG] Not resetting chatbot - continuing conversation")
+        
+        if should_reset:
+            chatbot.reset()
+            # Use language-specific prompt
+            current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
+            chatbot.messages.append({"role": "system", "content": current_prompt})
+            print(f"[DEBUG] Chatbot reset and prompt set successfully")
+        else:
+            # For ongoing conversations, ensure we have the right prompt but don't reset
+            if not chatbot.messages or chatbot.messages[0]["role"] != "system":
+                current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
+                chatbot.messages.insert(0, {"role": "system", "content": current_prompt})
+                print(f"[DEBUG] Added system prompt to ongoing conversation")
 
         # Always handle greeting triggers as a hard reset to greeting
         greeting_triggers = {
@@ -1555,16 +1577,27 @@ IMPORTANTE: Usa esta información específica sobre las respuestas del usuario p
             print(f"[DEBUG] Enhanced prompt length: {len(enhanced_prompt)}")
             print(f"[DEBUG] Enhanced prompt preview: {enhanced_prompt[:500]}...")
             
-            # Reset chatbot and set enhanced prompt with conversation history
-            chatbot.reset()
-            chatbot.messages.append({"role": "system", "content": enhanced_prompt})
+            # Set enhanced prompt with conversation history (don't reset for ongoing conversations)
+            if should_reset:
+                chatbot.reset()
+                chatbot.messages.append({"role": "system", "content": enhanced_prompt})
+            else:
+                # For ongoing conversations, update the system prompt without resetting
+                if chatbot.messages and chatbot.messages[0]["role"] == "system":
+                    chatbot.messages[0]["content"] = enhanced_prompt
+                else:
+                    chatbot.messages.insert(0, {"role": "system", "content": enhanced_prompt})
+                print(f"[DEBUG] Updated system prompt for ongoing conversation")
             
-            # Add conversation history for context
-            print(f"[DEBUG] Adding {len(conversation_history)} messages to chatbot context")
-            for i, msg_history in enumerate(conversation_history):
-                chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
-                if i < 3:  # Log first 3 messages for debugging
-                    print(f"[DEBUG] Added message {i+1}: {msg_history['role']}: {msg_history['content'][:100]}...")
+            # Add conversation history for context (only if not already present)
+            if should_reset or not any(msg.get("role") == "user" for msg in chatbot.messages[1:]):  # Only add if reset or no user messages present
+                print(f"[DEBUG] Adding {len(conversation_history)} messages to chatbot context")
+                for i, msg_history in enumerate(conversation_history):
+                    chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
+                    if i < 3:  # Log first 3 messages for debugging
+                        print(f"[DEBUG] Added message {i+1}: {msg_history['role']}: {msg_history['content'][:100]}...")
+            else:
+                print(f"[DEBUG] Conversation history already present, not adding duplicates")
             
             print(f"[DEBUG] Total chatbot messages before chat: {len(chatbot.messages)}")
             response = await run_in_threadpool(chatbot.chat, message)
