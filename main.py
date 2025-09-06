@@ -680,6 +680,31 @@ def clear_user_context_cache(user_id):
         del user_context_cache[user_id]
         print(f"[DEBUG] Cleared user context cache for {user_id}")
 
+async def set_state(user_id, new_state, choice=None, q1_val=None, q2_val=None, q3_val=None, q4_val=None, q5_val=None, q6_val=None, q7_val=None, q8_val=None, q9_val=None, q10_val=None):
+    """Set user state in database"""
+    try:
+        print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
+        
+        # Check if user already has a state record
+        existing_state = await database.fetch_one("SELECT user_id FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
+        
+        if existing_state:
+            print(f"[DEBUG] Updating existing state with values: state={new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
+            result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5, q6 = :q6, q7 = :q7, q8 = :q8, q9 = :q9, q10 = :q10 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val, "user_id": user_id})
+            print(f"[DEBUG] Updated existing state: {result}")
+        else:
+            print(f"[DEBUG] Creating new state with values: state={new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
+            result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val})
+            print(f"[DEBUG] Created new state: {result}")
+        
+        # Clear user context cache when state changes
+        clear_user_context_cache(user_id)
+        
+        return result
+    except Exception as e:
+        print(f"Error setting state: {e}")
+        return None
+
 @app.post("/message")
 async def chat_endpoint(msg: Message):
     response = None  # Always initialize response
@@ -800,11 +825,17 @@ async def chat_endpoint(msg: Message):
                         resumen_response = await run_in_threadpool(chatbot.chat, resumen_prompt)
                         print(f"[DEBUG] AI summary generated: {resumen_response[:200]}...")
                         
-                        # Crear saludo personalizado basado en el resumen
+                        # Crear saludo personalizado basado en el resumen y test results
+                        test_context = ""
+                        if test_results["completed"]:
+                            predominant_style = test_results["style"]
+                            test_context = f" IMPORTANTE: El usuario tiene un estilo de apego {predominant_style}. No asumas otros estilos basándote solo en el historial."
+                        
                         saludo_prompt = (
                             f"Basándote en este resumen de conversaciones anteriores, crea un saludo cálido y personalizado para retomar la conversación:\n\n"
                             f"Resumen: {resumen_response}\n\n"
-                            f"Crea un saludo que: 1) Sea cálido y personal, 2) Mencione algo específico de conversaciones anteriores, 3) Pregunte cómo está el usuario hoy, 4) Sea breve (máximo 2-3 oraciones)."
+                            f"Contexto del test: {test_context}\n\n"
+                            f"Crea un saludo que: 1) Sea cálido y personal, 2) Mencione algo específico de conversaciones anteriores, 3) Pregunte cómo está el usuario hoy, 4) Sea breve (máximo 2-3 oraciones), 5) NO menciones estilos de apego específicos a menos que el usuario los mencione primero."
                         )
                         
                         response = await run_in_threadpool(chatbot.chat, saludo_prompt)
@@ -844,7 +875,7 @@ async def chat_endpoint(msg: Message):
                     
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                     # Change state to conversation so user can have normal conversations
-                    await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                     return {"response": response}
                 except Exception as e:
                     print(f"[DEBUG] Error in auto-greeting: {e}")
@@ -858,29 +889,6 @@ async def chat_endpoint(msg: Message):
             # Return a simple response if database fails
             return {"response": "Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos momentos."}
 
-        async def set_state(new_state, choice=None, q1_val=None, q2_val=None, q3_val=None, q4_val=None, q5_val=None, q6_val=None, q7_val=None, q8_val=None, q9_val=None, q10_val=None):
-            try:
-                print(f"[DEBUG] Setting state: {new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
-                
-                # Check if user already has a state record
-                existing_state = await database.fetch_one("SELECT user_id FROM test_state WHERE user_id = :user_id", values={"user_id": user_id})
-                
-                if existing_state:
-                    print(f"[DEBUG] Updating existing state with values: state={new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
-                    result = await database.execute("UPDATE test_state SET state = :state, last_choice = :choice, q1 = :q1, q2 = :q2, q3 = :q3, q4 = :q4, q5 = :q5, q6 = :q6, q7 = :q7, q8 = :q8, q9 = :q9, q10 = :q10 WHERE user_id = :user_id", values={"state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val, "user_id": user_id})
-                    print(f"[DEBUG] Updated existing state: {result}")
-                else:
-                    print(f"[DEBUG] Creating new state with values: state={new_state}, choice={choice}, q1={q1_val}, q2={q2_val}, q3={q3_val}, q4={q4_val}, q5={q5_val}, q6={q6_val}, q7={q7_val}, q8={q8_val}, q9={q9_val}, q10={q10_val}")
-                    result = await database.execute("INSERT INTO test_state (user_id, state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) VALUES (:user_id, :state, :choice, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10)", values={"user_id": user_id, "state": new_state, "choice": choice, "q1": q1_val, "q2": q2_val, "q3": q3_val, "q4": q4_val, "q5": q5_val, "q6": q6_val, "q7": q7_val, "q8": q8_val, "q9": q9_val, "q10": q10_val})
-                    print(f"[DEBUG] Created new state: {result}")
-                
-                # Clear user context cache when state changes
-                clear_user_context_cache(user_id)
-                
-                return result
-            except Exception as e:
-                print(f"Error setting state: {e}")
-                return None
 
         print(f"[DEBUG] Chatbot check - chatbot is None: {chatbot is None}")
         # Check if chatbot is available
@@ -909,7 +917,7 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             # Preserve existing test answers when resetting to greeting state
-            await set_state("greeting", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            await set_state(user_id, "greeting", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
             # --- NUEVO: Saludo personalizado para recurrentes ---
             user_profile = await get_user_profile(user_id)
             print(f"[DEBUG] User profile for personalized greeting: {user_profile}")
@@ -959,7 +967,7 @@ async def chat_endpoint(msg: Message):
                         response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                 # Change state to conversation so user can have normal conversations
-                await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 return {"response": response}
             else:
                 print(f"[DEBUG] Personalized greeting NOT triggered - no conversation history found")
@@ -1009,10 +1017,10 @@ async def chat_endpoint(msg: Message):
             # Check if user already has test answers - if so, preserve them
             if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
                 print("[DEBUG] User already has test answers, preserving them")
-                await set_state("q1", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state(user_id, "q1", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
             else:
                 print("[DEBUG] Starting fresh test, clearing answers")
-                await set_state("q1", None, None, None, None, None, None, None, None, None, None, None)
+                await set_state(user_id, "q1", None, None, None, None, None, None, None, None, None, None, None)
             questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
             question = questions[0]
             
@@ -1035,7 +1043,7 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] In greeting state, user chose: {message.upper()}")
             if message.upper() == "A":
                 # Start test
-                await set_state("q1", None, None, None, None, None, None, None, None, None, None, None)
+                await set_state(user_id, "q1", None, None, None, None, None, None, None, None, None, None, None)
                 questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
                 question = questions[0]
                 
@@ -1051,7 +1059,7 @@ async def chat_endpoint(msg: Message):
                 response += "</ul>"
             elif message.upper() == "B":
                 # Normal conversation about feelings
-                await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 # --- NUEVO: Chequear y pedir datos personales si faltan ---
                 user_profile = await get_user_profile(user_id)
                 # --- NUEVO: Intentar parsear la respuesta del usuario para extraer datos personales ---
@@ -1126,7 +1134,7 @@ async def chat_endpoint(msg: Message):
                         response = "<p>Entiendo, a veces necesitamos hablar de lo que sentimos antes de hacer tests. ¿Cómo te sientes hoy? ¿Hay algo específico que te gustaría compartir o explorar juntos?</p>"
             elif message.upper() == "C":
                 # Normal conversation about attachment
-                await set_state("conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 if msg.language == "en":
                     response = (
                         "<p>Of course! Attachment is how we learned to relate since we were babies. Our first bonds with our caregivers taught us patterns that we repeat in our adult relationships.</p>"
@@ -1187,7 +1195,7 @@ async def chat_endpoint(msg: Message):
                         new_answers.append(selected_option['text'])
                     else:
                         new_answers.append(prev_answers[idx])
-                await set_state(next_state, message.upper(), *new_answers)
+                await set_state(user_id, next_state, message.upper(), *new_answers)
                 next_question = questions[current_question_index + 1]
                 if msg.language == "en":
                     response = f"<p><strong>Question {current_question_index + 2} of 10:</strong> {next_question['question']}</p><ul>"
@@ -1201,7 +1209,7 @@ async def chat_endpoint(msg: Message):
             else:
                 # Última pregunta respondida, calcular resultados
                 print(f"[DEBUG] Saving test completion: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
-                await set_state("results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
+                await set_state(user_id, "results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text']]
                 for i, answer in enumerate(answers):
@@ -1259,7 +1267,7 @@ async def chat_endpoint(msg: Message):
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
                 print(f"[DEBUG] Moving to post_test state: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
-                await set_state("post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
+                await set_state(user_id, "post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 return {"response": response}
         # Handle post-test conversation (user just finished test)
         elif state == "post_test":
@@ -1403,6 +1411,12 @@ async def chat_endpoint(msg: Message):
                 for msg_history in conversation_history:
                     chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
                 response = await run_in_threadpool(chatbot.chat, message)
+        # Handle questions about test results - transition to conversation state
+        elif state == "greeting" and any(keyword in message.lower() for keyword in ["resultados", "resultado", "test", "prueba", "estilo de apego", "apego", "recuerdas", "respuestas"]):
+            print(f"[DEBUG] User asking about test results from greeting state, transitioning to conversation")
+            await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            # Continue to conversation logic below
+            
         # Handle normal conversation with knowledge injection
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
