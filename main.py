@@ -976,16 +976,16 @@ async def chat_endpoint(msg: Message):
         else:
             print(f"[DEBUG] Not resetting chatbot - continuing conversation")
         
+        # Always get the current prompt for later use
+        current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
+        
         if should_reset:
             chatbot.reset()
-            # Use language-specific prompt
-            current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
             chatbot.messages.append({"role": "system", "content": current_prompt})
             print(f"[DEBUG] Chatbot reset and prompt set successfully")
         else:
             # For ongoing conversations, ensure we have the right prompt but don't reset
             if not chatbot.messages or chatbot.messages[0]["role"] != "system":
-                current_prompt = eldric_prompts.get(msg.language, eldric_prompts["es"])
                 chatbot.messages.insert(0, {"role": "system", "content": current_prompt})
                 print(f"[DEBUG] Added system prompt to ongoing conversation")
 
