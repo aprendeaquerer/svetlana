@@ -69,6 +69,7 @@ async def migrate_user_profile(database):
             edad INTEGER,
             tiene_pareja BOOLEAN,
             nombre_pareja TEXT,
+            tiempo_pareja TEXT,
             estado_emocional TEXT,
             estado_relacion TEXT,
             opinion_apego TEXT,
@@ -77,9 +78,13 @@ async def migrate_user_profile(database):
             attachment_style TEXT
         )
     ''')
-    # Intentar agregar la columna si la tabla ya existe
+    # Intentar agregar las columnas si la tabla ya existe
     try:
         await database.execute('ALTER TABLE user_profile ADD COLUMN attachment_style TEXT')
+    except Exception:
+        pass  # Ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN tiempo_pareja TEXT')
     except Exception:
         pass  # Ya existe
     return True

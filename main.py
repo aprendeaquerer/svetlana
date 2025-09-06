@@ -1605,6 +1605,15 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
 async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, tiempo_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None):
     if not database or not database.is_connected:
         return False
+    
+    # Ensure the tiempo_pareja column exists
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN tiempo_pareja TEXT')
+        print("[DEBUG] Added tiempo_pareja column to user_profile table")
+    except Exception as e:
+        # Column already exists or other error - this is expected
+        pass
+    
     # Verificar si ya existe
     row = await database.fetch_one("SELECT user_id FROM user_profile WHERE user_id = :user_id", {"user_id": user_id})
     values = {
@@ -1649,5 +1658,14 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
 async def get_user_profile(user_id):
     if not database or not database.is_connected:
         return None
+    
+    # Ensure the tiempo_pareja column exists
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN tiempo_pareja TEXT')
+        print("[DEBUG] Added tiempo_pareja column to user_profile table (in get_user_profile)")
+    except Exception as e:
+        # Column already exists or other error - this is expected
+        pass
+    
     row = await database.fetch_one("SELECT * FROM user_profile WHERE user_id = :user_id", {"user_id": user_id})
     return dict(row) if row else None
