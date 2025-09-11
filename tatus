@@ -1,0 +1,5 @@
+[33ma69353d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix current_prompt scoping error
+[33me7da185[m Fix unnecessary greetings in ongoing conversations
+[33m9414ed8[m Make chatbot much more human-like and conversational
+[33mf056b6e[m Fix multiple conversation and state management issues
+[33ma66ccb4[m Fix database error: Add missing tiempo_pareja column to user_profile table

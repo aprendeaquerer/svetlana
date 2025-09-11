@@ -1,0 +1,12 @@
+/* Force chat bubbles to auto-size to text content */
+.msg-bubble, .left-msg .msg-bubble, .right-msg .msg-bubble {
+  display: inline-block !important;
+  min-width: 48px !important;
+  max-width: 70% !important;
+  width: fit-content !important;
+  padding: 8px 16px !important;
+  border-radius: 15px !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+  margin-bottom: 8px !important;
+} 

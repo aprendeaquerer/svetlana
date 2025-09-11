@@ -40,10 +40,10 @@ except ImportError as e:
             {
                 "question": "1. Cuando alguien me cuenta algo personal…",
                 "options": [
-                    {"text": "A) Me gusta que confien en mi, escucho con calma y conecto con lo que sienten", "scores": {"secure": 1, "anxious": 0, "fearful_avoidant": 0, "avoidant": 0}},
-                    {"text": "B) Me encanta y enseguida quiero contar mis propias experiencias para sentirnos mas unidos", "scores": {"secure": 0, "anxious": 1, "fearful_avoidant": 0, "avoidant": 0}},
-                    {"text": "C) A veces me engancho mucho, otras me siento raro y no se como reaccionar", "scores": {"secure": 0, "anxious": 0, "fearful_avoidant": 1, "avoidant": 0}},
-                    {"text": "D) Me cuesta, prefiero cambiar de tema o quitarle seriedad con una broma", "scores": {"secure": 0, "anxious": 0, "fearful_avoidant": 0, "avoidant": 1}}
+                    {"text": "A) Me gusta que confien en mi, escucho con calma y conecto con lo que sienten", "scores": {"secure": 1, "anxious": 0, "desorganizado": 0, "avoidant": 0}},
+                    {"text": "B) Me encanta y enseguida quiero contar mis propias experiencias para sentirnos mas unidos", "scores": {"secure": 0, "anxious": 1, "desorganizado": 0, "avoidant": 0}},
+                    {"text": "C) A veces me engancho mucho, otras me siento raro y no se como reaccionar", "scores": {"secure": 0, "anxious": 0, "desorganizado": 1, "avoidant": 0}},
+                    {"text": "D) Me cuesta, prefiero cambiar de tema o quitarle seriedad con una broma", "scores": {"secure": 0, "anxious": 0, "desorganizado": 0, "avoidant": 1}}
                 ]
             }
         ]
@@ -59,7 +59,7 @@ except ImportError as e:
             "es": {
                 "secure": "Seguro: Te sientes cómodo con la intimidad y la independencia, confías en las relaciones y manejas bien los conflictos.",
                 "anxious": "Ansioso: Buscas mucha cercanía y te preocupas por el rechazo, necesitas constantemente tranquilidad en las relaciones.",
-                "fearful_avoidant": "Evitativo temeroso: Tienes patrones contradictorios, a veces buscas cercanía y otras te alejas para protegerte.",
+                "desorganizado": "Desorganizado: Tienes patrones contradictorios, a veces buscas cercanía y otras te alejas para protegerte.",
                 "avoidant": "Evitativo: Prefieres mantener distancia emocional, evitas la intimidad y tiendes a ser independiente."
             }
         }
@@ -96,7 +96,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
             'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación', 'confirmacion'],
             'avoidant': ['evitativo', 'evito', 'distancia', 'independiente', 'solo', 'espacio', 'alejado', 'frío', 'distante'],
             'secure': ['seguro', 'confianza', 'equilibrio', 'cómodo', 'tranquilo', 'estable', 'sano'],
-            'fearful_avoidant': ['evitativo temeroso', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
+            'desorganizado': ['evitativo temeroso', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
             'relationship': ['relación', 'relaciones', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
             'communication': ['comunicación', 'hablar', 'expresar', 'decir', 'conversar'],
             'conflict': ['conflicto', 'pelea', 'discusión', 'problema', 'disputa'],
@@ -107,7 +107,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
             'anxious': ['anxious', 'anxiety', 'worried', 'fear', 'abandonment', 'rejection', 'insecure', 'need', 'confirmation'],
             'avoidant': ['avoidant', 'avoid', 'distance', 'independent', 'alone', 'space', 'distant', 'cold', 'detached'],
             'secure': ['secure', 'trust', 'balance', 'comfortable', 'calm', 'stable', 'healthy'],
-            'fearful_avoidant': ['fearful avoidant', 'confused', 'contradictory', 'chaos', 'inconsistent'],
+            'desorganizado': ['fearful avoidant', 'confused', 'contradictory', 'chaos', 'inconsistent'],
             'relationship': ['relationship', 'partner', 'love', 'bond', 'connection', 'intimacy', 'closeness'],
             'communication': ['communication', 'talk', 'express', 'say', 'converse'],
             'conflict': ['conflict', 'fight', 'argument', 'problem', 'dispute'],
@@ -118,7 +118,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
             'anxious': ['тревожный', 'тревога', 'беспокойный', 'страх', 'покинутость', 'отвержение', 'неуверенный', 'нужда', 'подтверждение'],
             'avoidant': ['избегающий', 'избегать', 'дистанция', 'независимый', 'один', 'пространство', 'отдаленный', 'холодный', 'отстраненный'],
             'secure': ['надежный', 'доверие', 'баланс', 'комфортный', 'спокойный', 'стабильный', 'здоровый'],
-            'fearful_avoidant': ['дезорганизованный', 'запутанный', 'противоречивый', 'хаос', 'непоследовательный'],
+            'desorganizado': ['дезорганизованный', 'запутанный', 'противоречивый', 'хаос', 'непоследовательный'],
             'relationship': ['отношения', 'партнер', 'любовь', 'связь', 'соединение', 'близость', 'интимность'],
             'communication': ['общение', 'говорить', 'выражать', 'сказать', 'беседовать'],
             'conflict': ['конфликт', 'ссора', 'спор', 'проблема', 'разногласие'],
@@ -639,7 +639,7 @@ async def load_user_context(user_id):
         test_results = {"completed": False}
     elif any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
         print(f"[DEBUG] Calculating test results for {user_id}...")
-        scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
+        scores = {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0}
         answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
         questions = TEST_QUESTIONS.get("es", TEST_QUESTIONS["es"])
         
@@ -706,7 +706,7 @@ def generate_detailed_test_context(answers, scores, predominant_style, language=
     
     # Add style and scores summary
     context_parts.append(f"ESTILO DE APEGO PREDOMINANTE: {predominant_style.title()}")
-    context_parts.append(f"PUNTUACIONES: Seguro {scores.get('secure', 0)}/20, Ansioso {scores.get('anxious', 0)}/20, Evitativo {scores.get('avoidant', 0)}/20, Evitativo temeroso {scores.get('fearful_avoidant', 0)}/20")
+    context_parts.append(f"PUNTUACIONES: Seguro {scores.get('secure', 0)}/20, Ansioso {scores.get('anxious', 0)}/20, Evitativo {scores.get('avoidant', 0)}/20, Evitativo temeroso {scores.get('desorganizado', 0)}/20")
     context_parts.append("")
     
     # Add detailed answers with questions
@@ -802,9 +802,16 @@ async def chat_endpoint(msg: Message):
         print(f"[DEBUG] message: '{message}'")
         print(f"[DEBUG] language: {msg.language}")
 
+        # Load user context first to check state
+        user_context = await load_user_context(user_id)
+        state = user_context.get("state")
+        test_results = user_context.get("test_results", {})
+        conversation_history = user_context.get("conversation_history", [])
+        
         # --- NUEVO: Detectar primer mensaje del día (solo para usuarios registrados) ---
         primer_mensaje_dia = False
-        if user_id != "invitado":  # Solo para usuarios registrados, no invitados
+        # Skip personalized greeting if user is in post_test state (just completed test)
+        if state != "post_test" and user_id != "invitado":  # Solo para usuarios registrados, no invitados
             user_profile = await get_user_profile(user_id)
             hoy = datetime.date.today()
             if user_profile and user_profile.get("fecha_ultima_conversacion"):
@@ -856,13 +863,9 @@ async def chat_endpoint(msg: Message):
                 print("[DEBUG] Database is None, returning error")
                 return {"response": "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."}
             
-            # Load comprehensive user context
-            user_context = await load_user_context(user_id)
-            state = user_context["state"]
-            last_choice = user_context["last_choice"]
-            user_profile = user_context["user_profile"]
-            test_results = user_context["test_results"]
-            conversation_history = user_context["conversation_history"]
+            # Use already loaded user context
+            last_choice = user_context.get("last_choice")
+            user_profile = user_context.get("user_profile")
             
             # Extract test answers for backward compatibility
             q1 = test_results["answers"]["q1"] if test_results["completed"] else None
@@ -1138,7 +1141,7 @@ async def chat_endpoint(msg: Message):
                 response = f"<p><strong>Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
             
             for i, option in enumerate(question['options']):
-                response += f"<li>{chr(97+i)}) {option['text']}</li>"
+                response += f"<li>{option['text']}</li>"
             response += "</ul>"
             
             print(f"[DEBUG] Set test start response (forced): {response[:100]}...")
@@ -1161,7 +1164,7 @@ async def chat_endpoint(msg: Message):
                     response = f"<p><strong>Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
                 
                 for i, option in enumerate(question['options']):
-                    response += f"<li>{chr(97+i)}) {option['text']}</li>"
+                    response += f"<li>{option['text']}</li>"
                 response += "</ul>"
             elif message.upper() == "B":
                 # Normal conversation about feelings
@@ -1310,13 +1313,13 @@ async def chat_endpoint(msg: Message):
                 else:
                     response = f"<p><strong>Pregunta {current_question_index + 2} de 10:</strong> {next_question['question']}</p><ul>"
                 for i, option in enumerate(next_question['options']):
-                    response += f"<li>{chr(97+i)}) {option['text']}</li>"
+                    response += f"<li>{option['text']}</li>"
                 response += "</ul>"
             else:
                 # Última pregunta respondida, calcular resultados
                 print(f"[DEBUG] Saving test completion: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
                 await set_state(user_id, "results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
-                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
+                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text']]
                 for i, answer in enumerate(answers):
                     if answer:
@@ -1340,7 +1343,7 @@ async def chat_endpoint(msg: Message):
                         f"<li>Secure: {scores['secure']}</li>"
                         f"<li>Anxious: {scores['anxious']}</li>"
                         f"<li>Avoidant: {scores['avoidant']}</li>"
-                        f"<li>Fearful Avoidant: {scores['fearful_avoidant']}</li>"
+                        f"<li>Fearful Avoidant: {scores['desorganizado']}</li>"
                         f"</ul>"
                         f"<p>Would you like to explore this further or talk about how this affects your relationships?</p>"
                     )
@@ -1354,7 +1357,7 @@ async def chat_endpoint(msg: Message):
                         f"<li>Безопасный: {scores['secure']}</li>"
                         f"<li>Тревожный: {scores['anxious']}</li>"
                         f"<li>Избегающий: {scores['avoidant']}</li>"
-                        f"<li>Дезорганизованный: {scores['fearful_avoidant']}</li>"
+                        f"<li>Дезорганизованный: {scores['desorganizado']}</li>"
                         f"</ul>"
                         f"<p>Хотели бы вы изучить это дальше или поговорить о том, как это влияет на ваши отношения?</p>"
                     )
@@ -1368,7 +1371,7 @@ async def chat_endpoint(msg: Message):
                         f"<li>Seguro: {scores['secure']}</li>"
                         f"<li>Ansioso: {scores['anxious']}</li>"
                         f"<li>Evitativo: {scores['avoidant']}</li>"
-                        f"<li>Evitativo temeroso: {scores['fearful_avoidant']}</li>"
+                        f"<li>Evitativo temeroso: {scores['desorganizado']}</li>"
                         f"</ul>"
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
@@ -1445,7 +1448,7 @@ async def chat_endpoint(msg: Message):
                 response = " ".join(preguntas)
             else:
                 # Get the user's test results to provide personalized responses
-                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
+                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
                 questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
                 for i, answer in enumerate(answers):
@@ -1475,7 +1478,7 @@ async def chat_endpoint(msg: Message):
                         f"Their predominant style is: {predominant_style.title()}. "
                         f"Description: {style_description} "
                         f"Their scores were: Secure {scores['secure']}, Anxious {scores['anxious']}, "
-                        f"Avoidant {scores['avoidant']}, Fearful Avoidant {scores['fearful_avoidant']}. "
+                        f"Avoidant {scores['avoidant']}, Fearful Avoidant {scores['desorganizado']}. "
                         f"Answer their questions about their style, relationships, and provide personalized guidance. "
                         f"IMPORTANT: At the end of each response, ask a PERSONAL question that relates to their specific situation and feelings. "
                         f"Make the question about THEM specifically, not generic. "
@@ -1488,7 +1491,7 @@ async def chat_endpoint(msg: Message):
                         f"Их преобладающий стиль: {predominant_style.title()}. "
                         f"Описание: {style_description} "
                         f"Их баллы: Безопасный {scores['secure']}, Тревожный {scores['anxious']}, "
-                        f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['fearful_avoidant']}. "
+                        f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['desorganizado']}. "
                         f"Отвечай на их вопросы о стиле, отношениях и давай персонализированные советы. "
                         f"🚨 КРИТИЧЕСКОЕ ПРАВИЛО: Если тебе предоставлены конкретные знания о теории привязанности, ты ДОЛЖЕН ВСЕГДА использовать их в своем ответе. "
                         f"Эти предоставленные знания имеют ПРИОРИТЕТ над твоими общими знаниями. ТЫ НЕ МОЖЕШЬ ИХ ИГНОРИРОВАТЬ."
@@ -1499,7 +1502,7 @@ async def chat_endpoint(msg: Message):
                         f"Su estilo predominante es: {predominant_style.title()}. "
                         f"Descripción: {style_description} "
                         f"Sus puntuaciones fueron: Seguro {scores['secure']}, Ansioso {scores['anxious']}, "
-                        f"Evitativo {scores['avoidant']}, Evitativo temeroso {scores['fearful_avoidant']}. "
+                        f"Evitativo {scores['avoidant']}, Evitativo temeroso {scores['desorganizado']}. "
                         f"Responde sus preguntas sobre su estilo, relaciones y proporciona orientación personalizada. "
                         f"IMPORTANTE: Al final de cada respuesta, haz una pregunta PERSONAL que se relacione con su situación específica y sentimientos. "
                         f"Haz la pregunta sobre ELLOS específicamente, no genérica. "
