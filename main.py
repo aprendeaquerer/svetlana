@@ -38,12 +38,12 @@ except ImportError as e:
     TEST_QUESTIONS = {
         "es": [
             {
-                "question": "Cuando estás en una relación, ¿cómo sueles reaccionar cuando tu pareja no responde a tus mensajes inmediatamente?",
+                "question": "1. Cuando alguien me cuenta algo personal…",
                 "options": [
-                    {"text": "Me preocupo y pienso que algo está mal", "scores": {"anxious": 2, "avoidant": 0, "secure": 0, "disorganized": 1}},
-                    {"text": "Me enfado y me distancio", "scores": {"anxious": 0, "avoidant": 2, "secure": 0, "disorganized": 1}},
-                    {"text": "Entiendo que puede estar ocupada", "scores": {"anxious": 0, "avoidant": 0, "secure": 2, "disorganized": 0}},
-                    {"text": "Me siento confundido y no sé qué hacer", "scores": {"anxious": 1, "avoidant": 0, "secure": 0, "disorganized": 2}}
+                    {"text": "A) Me gusta que confien en mi, escucho con calma y conecto con lo que sienten", "scores": {"secure": 1, "anxious": 0, "fearful_avoidant": 0, "avoidant": 0}},
+                    {"text": "B) Me encanta y enseguida quiero contar mis propias experiencias para sentirnos mas unidos", "scores": {"secure": 0, "anxious": 1, "fearful_avoidant": 0, "avoidant": 0}},
+                    {"text": "C) A veces me engancho mucho, otras me siento raro y no se como reaccionar", "scores": {"secure": 0, "anxious": 0, "fearful_avoidant": 1, "avoidant": 0}},
+                    {"text": "D) Me cuesta, prefiero cambiar de tema o quitarle seriedad con una broma", "scores": {"secure": 0, "anxious": 0, "fearful_avoidant": 0, "avoidant": 1}}
                 ]
             }
         ]
@@ -57,10 +57,10 @@ except ImportError as e:
     def get_style_description(style, language="es"):
         descriptions = {
             "es": {
-                "secure": "Seguro: Te sientes cómodo con la intimidad y la independencia.",
-                "anxious": "Ansioso: Buscas mucha cercanía y te preocupas por el rechazo.",
-                "avoidant": "Evitativo: Prefieres mantener distancia emocional.",
-                "disorganized": "Desorganizado: Tienes patrones contradictorios."
+                "secure": "Seguro: Te sientes cómodo con la intimidad y la independencia, confías en las relaciones y manejas bien los conflictos.",
+                "anxious": "Ansioso: Buscas mucha cercanía y te preocupas por el rechazo, necesitas constantemente tranquilidad en las relaciones.",
+                "fearful_avoidant": "Evitativo temeroso: Tienes patrones contradictorios, a veces buscas cercanía y otras te alejas para protegerte.",
+                "avoidant": "Evitativo: Prefieres mantener distancia emocional, evitas la intimidad y tiendes a ser independiente."
             }
         }
         return descriptions.get(language, descriptions["es"]).get(style, "")
@@ -96,7 +96,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
             'anxious': ['ansioso', 'ansiedad', 'preocupado', 'miedo', 'abandono', 'rechazo', 'inseguro', 'necesito', 'confirmación', 'confirmacion'],
             'avoidant': ['evitativo', 'evito', 'distancia', 'independiente', 'solo', 'espacio', 'alejado', 'frío', 'distante'],
             'secure': ['seguro', 'confianza', 'equilibrio', 'cómodo', 'tranquilo', 'estable', 'sano'],
-            'disorganized': ['desorganizado', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
+            'fearful_avoidant': ['evitativo temeroso', 'confundido', 'contradictorio', 'caos', 'inconsistente'],
             'relationship': ['relación', 'relaciones', 'pareja', 'amor', 'vínculo', 'conexión', 'intimidad', 'cercanía'],
             'communication': ['comunicación', 'hablar', 'expresar', 'decir', 'conversar'],
             'conflict': ['conflicto', 'pelea', 'discusión', 'problema', 'disputa'],
@@ -107,7 +107,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
             'anxious': ['anxious', 'anxiety', 'worried', 'fear', 'abandonment', 'rejection', 'insecure', 'need', 'confirmation'],
             'avoidant': ['avoidant', 'avoid', 'distance', 'independent', 'alone', 'space', 'distant', 'cold', 'detached'],
             'secure': ['secure', 'trust', 'balance', 'comfortable', 'calm', 'stable', 'healthy'],
-            'disorganized': ['disorganized', 'confused', 'contradictory', 'chaos', 'inconsistent'],
+            'fearful_avoidant': ['fearful avoidant', 'confused', 'contradictory', 'chaos', 'inconsistent'],
             'relationship': ['relationship', 'partner', 'love', 'bond', 'connection', 'intimacy', 'closeness'],
             'communication': ['communication', 'talk', 'express', 'say', 'converse'],
             'conflict': ['conflict', 'fight', 'argument', 'problem', 'dispute'],
@@ -118,7 +118,7 @@ def extract_keywords(message: str, language: str = "es") -> List[str]:
             'anxious': ['тревожный', 'тревога', 'беспокойный', 'страх', 'покинутость', 'отвержение', 'неуверенный', 'нужда', 'подтверждение'],
             'avoidant': ['избегающий', 'избегать', 'дистанция', 'независимый', 'один', 'пространство', 'отдаленный', 'холодный', 'отстраненный'],
             'secure': ['надежный', 'доверие', 'баланс', 'комфортный', 'спокойный', 'стабильный', 'здоровый'],
-            'disorganized': ['дезорганизованный', 'запутанный', 'противоречивый', 'хаос', 'непоследовательный'],
+            'fearful_avoidant': ['дезорганизованный', 'запутанный', 'противоречивый', 'хаос', 'непоследовательный'],
             'relationship': ['отношения', 'партнер', 'любовь', 'связь', 'соединение', 'близость', 'интимность'],
             'communication': ['общение', 'говорить', 'выражать', 'сказать', 'беседовать'],
             'conflict': ['конфликт', 'ссора', 'спор', 'проблема', 'разногласие'],
@@ -618,7 +618,7 @@ async def load_user_context(user_id):
     print(f"[DEBUG] Test answers for {user_id}: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={q10}")
     if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
         print(f"[DEBUG] Calculating test results for {user_id}...")
-        scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+        scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
         answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
         questions = TEST_QUESTIONS.get("es", TEST_QUESTIONS["es"])
         
@@ -685,7 +685,7 @@ def generate_detailed_test_context(answers, scores, predominant_style, language=
     
     # Add style and scores summary
     context_parts.append(f"ESTILO DE APEGO PREDOMINANTE: {predominant_style.title()}")
-    context_parts.append(f"PUNTUACIONES: Seguro {scores.get('secure', 0)}/20, Ansioso {scores.get('anxious', 0)}/20, Evitativo {scores.get('avoidant', 0)}/20, Desorganizado {scores.get('disorganized', 0)}/20")
+    context_parts.append(f"PUNTUACIONES: Seguro {scores.get('secure', 0)}/20, Ansioso {scores.get('anxious', 0)}/20, Evitativo {scores.get('avoidant', 0)}/20, Evitativo temeroso {scores.get('fearful_avoidant', 0)}/20")
     context_parts.append("")
     
     # Add detailed answers with questions
@@ -799,35 +799,34 @@ async def chat_endpoint(msg: Message):
             elif user_profile:
                 primer_mensaje_dia = True
         
-        # Si es el primer mensaje del día, generar saludo IA
+        # Si es el primer mensaje del día, generar saludo personalizado pero seguro
         if primer_mensaje_dia:
             try:
-                print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado IA...")
-                history = await load_conversation_history(user_id, limit=20)
-                # Crear prompt para la IA
-                resumen_prompt = (
-                    "Eres un asistente que ayuda a un coach emocional a dar seguimiento personalizado. "
-                    "Lee el siguiente historial de conversación y extrae: 1) nombres de personas mencionadas, 2) temas o emociones importantes, 3) preguntas abiertas o temas sin resolver. "
-                    "Devuelve un resumen breve y una o dos preguntas de seguimiento cálidas y personales para retomar la conversación hoy.\n\n"
-                    "Historial:\n" +
-                    "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
-                    "\n\nResumen y preguntas de seguimiento:" 
-                )
-                # Usar ChatGPT para obtener el resumen y preguntas
-                if chatbot:
-                    resumen_ia = await run_in_threadpool(chatbot.chat, resumen_prompt)
-                    response = resumen_ia
+                print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado...")
+                user_profile = await get_user_profile(user_id)
+                
+                # Solo usar información verificada del perfil del usuario, no del historial
+                nombre = user_profile.get("nombre") if user_profile else None
+                nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                estado_emocional = user_profile.get("estado_emocional") if user_profile else None
+                
+                # Crear saludo personalizado pero seguro
+                if nombre:
+                    response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
+                    if nombre_pareja:
+                        response += f" ¿Y cómo ha estado {nombre_pareja}?"
                 else:
-                    response = "¡Hola de nuevo! ¿Cómo has estado desde nuestra última conversación? Cuéntame si hubo algún cambio o algo que quieras compartir hoy."
+                    response = "¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
+                
                 # Actualizar la fecha de última conversación
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                 return {"response": response}
             except Exception as e:
-                print(f"[DEBUG] Error generating AI summary for registered user: {e}")
+                print(f"[DEBUG] Error generating personalized greeting: {e}")
                 import traceback
-                print(f"[DEBUG] AI summary error traceback: {traceback.format_exc()}")
-                # Fall back to normal greeting if AI summary fails
-                print("[DEBUG] Falling back to normal greeting due to AI summary error")
+                print(f"[DEBUG] Personalized greeting error traceback: {traceback.format_exc()}")
+                # Fall back to normal greeting if personalized greeting fails
+                print("[DEBUG] Falling back to normal greeting due to personalized greeting error")
 
         # Load user context (cached for efficiency)
         try:
@@ -867,75 +866,57 @@ async def chat_endpoint(msg: Message):
             if user_id != "invitado" and not primer_mensaje_dia and state == "greeting":
                 # Check if user has conversation history and is in greeting state
                 history = await load_conversation_history(user_id, limit=5)
-                if history and len(history) > 0:
-                    auto_greeting = True
-                    print("[DEBUG] Auto-greeting triggered for returning user with history")
+                # Only trigger auto-greeting if user has meaningful conversation history (more than just initial greetings)
+                if history and len(history) > 2:  # Changed from > 0 to > 2 to avoid auto-greeting for users with minimal history
+                    # Additional check: ensure the user has actually had a conversation, not just initial greetings
+                    has_meaningful_conversation = any(
+                        msg.get('content', '').lower() not in ['saludo inicial', 'hola', 'hi', 'hello'] 
+                        for msg in history
+                    )
+                    if has_meaningful_conversation:
+                        auto_greeting = True
+                        print("[DEBUG] Auto-greeting triggered for returning user with meaningful conversation history")
+                    else:
+                        print("[DEBUG] Auto-greeting NOT triggered - user only has initial greetings in history")
+                else:
+                    print("[DEBUG] Auto-greeting NOT triggered - insufficient conversation history")
             
-            # Si es auto-greeting, generar saludo personalizado
+            # Si es auto-greeting, generar saludo personalizado pero seguro
             if auto_greeting:
                 try:
                     print("[DEBUG] Auto-greeting detected, generating personalized greeting...")
-                    history = await load_conversation_history(user_id, limit=20)
-                    # Crear prompt para la IA
-                    resumen_prompt = (
-                        "Eres un asistente que ayuda a un coach emocional a dar seguimiento personalizado. "
-                        "Lee el siguiente historial de conversación y extrae: 1) nombres de personas mencionadas, 2) temas o emociones importantes, 3) preguntas abiertas o temas sin resolver. "
-                        "Devuelve un resumen breve y una o dos preguntas de seguimiento cálidas y personales para retomar la conversación hoy.\n\n"
-                        "Historial de conversación:\n" + "\n".join([f"{msg['role']}: {msg['content']}" for msg in history])
-                    )
+                    user_profile = await get_user_profile(user_id)
                     
-                    if chatbot:
-                        # Generar resumen con IA
-                        resumen_response = await run_in_threadpool(chatbot.chat, resumen_prompt)
-                        print(f"[DEBUG] AI summary generated: {resumen_response[:200]}...")
-                        
-                        # Crear saludo personalizado basado en el resumen y test results
-                        test_context = ""
-                        if test_results["completed"]:
-                            predominant_style = test_results["style"]
-                            test_context = f" IMPORTANTE: El usuario tiene un estilo de apego {predominant_style}. No asumas otros estilos basándote solo en el historial."
-                        
-                        saludo_prompt = (
-                            f"Basándote en este resumen de conversaciones anteriores, crea un saludo cálido y personalizado para retomar la conversación:\n\n"
-                            f"Resumen: {resumen_response}\n\n"
-                            f"Contexto del test: {test_context}\n\n"
-                            f"Crea un saludo que: 1) Sea cálido y personal, 2) Mencione algo específico de conversaciones anteriores, 3) Pregunte cómo está el usuario hoy, 4) Sea breve (máximo 2-3 oraciones), 5) NO menciones estilos de apego específicos a menos que el usuario los mencione primero."
-                        )
-                        
-                        response = await run_in_threadpool(chatbot.chat, saludo_prompt)
-                        print(f"[DEBUG] Personalized greeting generated: {response[:200]}...")
+                    # Solo usar información verificada del perfil del usuario
+                    nombre = user_profile.get("nombre") if user_profile else None
+                    nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                    fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
+                    
+                    # Calcular tiempo transcurrido
+                    fecha_str = ""
+                    if fecha_ultima:
+                        try:
+                            if isinstance(fecha_ultima, str):
+                                fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
+                            dias = (datetime.datetime.now() - fecha_ultima).days
+                            if dias == 0:
+                                fecha_str = " hoy"
+                            elif dias == 1:
+                                fecha_str = " ayer"
+                            elif dias < 7:
+                                fecha_str = f" hace {dias} días"
+                            else:
+                                fecha_str = f" hace {dias} días"
+                        except Exception as e:
+                            print(f"[DEBUG] Error calculating time difference: {e}")
+                    
+                    # Crear saludo personalizado pero seguro
+                    if nombre:
+                        response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                        if nombre_pareja:
+                            response += f" ¿Y cómo ha estado {nombre_pareja}?"
                     else:
-                        # Fallback si no hay chatbot
-                        user_profile = await get_user_profile(user_id)
-                        nombre = user_profile.get("nombre") if user_profile else None
-                        nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
-                        fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
-                        
-                        # Calcular tiempo transcurrido
-                        fecha_str = ""
-                        if fecha_ultima:
-                            try:
-                                if isinstance(fecha_ultima, str):
-                                    fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
-                                dias = (datetime.datetime.now() - fecha_ultima).days
-                                if dias == 0:
-                                    fecha_str = " hoy"
-                                elif dias == 1:
-                                    fecha_str = " ayer"
-                                elif dias < 7:
-                                    fecha_str = f" hace {dias} días"
-                                else:
-                                    fecha_str = f" hace {dias} días"
-                            except Exception as e:
-                                print(f"[DEBUG] Error calculating time difference: {e}")
-                        
-                        # Crear saludo personalizado
-                        if nombre:
-                            response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                            if nombre_pareja:
-                                response += f" ¿Y cómo ha estado {nombre_pareja}?"
-                        else:
-                            response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                        response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
                     
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                     # Change state to conversation so user can have normal conversations
@@ -1013,48 +994,57 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Conversation history for personalized greeting: {len(history)} messages")
             
             if history and len(history) > 0:
-                # Get user info from profile if available
-                nombre = user_profile.get("nombre") if user_profile else None
-                nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
-                fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
-                estado_emocional = user_profile.get("estado_emocional") if user_profile else None
-                
-                fecha_str = ""
-                if fecha_ultima:
-                    try:
-                        if isinstance(fecha_ultima, str):
-                            fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
-                        fecha_str = f" desde el {fecha_ultima.strftime('%d/%m/%Y')}"
-                    except Exception:
-                        fecha_str = ""
-                
-                # Create personalized greeting prompt based on conversation history
-                saludo_prompt = (
-                    f"Eres Eldric, un coach emocional cálido y cercano. Vas a saludar a un usuario recurrente"
-                    + (f" llamado {nombre}" if nombre else "")
-                    + (f". Su pareja se llama {nombre_pareja}" if nombre_pareja else "")
-                    + (f". Su estado emocional anterior era: {estado_emocional}" if estado_emocional else "")
-                    + f". La última conversación fue{fecha_str}. "
-                    "Lee el siguiente historial y genera un saludo cálido y una o dos preguntas de seguimiento personalizadas, retomando temas, emociones o personas mencionadas. "
-                    "No ofrezcas el test ni menú, solo retoma la relación y muestra interés genuino.\n\n"
-                    "Historial:\n" +
-                    "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
-                    "\n\nSaludo y preguntas de seguimiento:"
+                # Additional check: ensure the user has actually had a meaningful conversation, not just initial greetings
+                has_meaningful_conversation = any(
+                    msg.get('content', '').lower() not in ['saludo inicial', 'hola', 'hi', 'hello'] 
+                    for msg in history
                 )
-                if chatbot:
-                    saludo_ia = await run_in_threadpool(chatbot.chat, saludo_prompt)
-                    response = saludo_ia
-                else:
-                    if nombre:
-                        response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                        if nombre_pareja:
-                            response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                
+                if has_meaningful_conversation:
+                    # Get user info from profile if available
+                    nombre = user_profile.get("nombre") if user_profile else None
+                    nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                    fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
+                    estado_emocional = user_profile.get("estado_emocional") if user_profile else None
+                    
+                    fecha_str = ""
+                    if fecha_ultima:
+                        try:
+                            if isinstance(fecha_ultima, str):
+                                fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
+                            fecha_str = f" desde el {fecha_ultima.strftime('%d/%m/%Y')}"
+                        except Exception:
+                            fecha_str = ""
+                    
+                    # Create personalized greeting prompt based on conversation history
+                    saludo_prompt = (
+                        f"Eres Eldric, un coach emocional cálido y cercano. Vas a saludar a un usuario recurrente"
+                        + (f" llamado {nombre}" if nombre else "")
+                        + (f". Su pareja se llama {nombre_pareja}" if nombre_pareja else "")
+                        + (f". Su estado emocional anterior era: {estado_emocional}" if estado_emocional else "")
+                        + f". La última conversación fue{fecha_str}. "
+                        "Lee el siguiente historial y genera un saludo cálido y una o dos preguntas de seguimiento personalizadas, retomando temas, emociones o personas mencionadas. "
+                        "No ofrezcas el test ni menú, solo retoma la relación y muestra interés genuino.\n\n"
+                        "Historial:\n" +
+                        "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
+                        "\n\nSaludo y preguntas de seguimiento:"
+                    )
+                    if chatbot:
+                        saludo_ia = await run_in_threadpool(chatbot.chat, saludo_prompt)
+                        response = saludo_ia
                     else:
-                        response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
-                # Change state to conversation so user can have normal conversations
-                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                return {"response": response}
+                        if nombre:
+                            response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                            if nombre_pareja:
+                                response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                        else:
+                            response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                    await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                    # Change state to conversation so user can have normal conversations
+                    await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    return {"response": response}
+                else:
+                    print(f"[DEBUG] Personalized greeting NOT triggered - no meaningful conversation found")
             else:
                 print(f"[DEBUG] Personalized greeting NOT triggered - no conversation history found")
                 print(f"[DEBUG] User profile: {user_profile}")
@@ -1063,7 +1053,7 @@ async def chat_endpoint(msg: Message):
             if msg.language == "en":
                 response = (
                     "<p>Hey there! 😊 I'm <strong>Eldric</strong>, and I'm really excited to meet you! I'm here to chat about relationships and help you understand yourself better.</p>"
-                    "<p>You know how we all have different ways of connecting with people? Well, there are basically four main styles: <strong>secure, anxious, avoidant, and disorganized</strong>. It's pretty fascinating stuff!</p>"
+                    "<p>You know how we all have different ways of connecting with people? Well, there are basically four main styles: <strong>secure, anxious, avoidant, and fearful avoidant</strong>. It's pretty fascinating stuff!</p>"
                     "<p>I'd love to get to know you better. What sounds good to you?</p>"
                     "<ul>"
                     "<li>a) I'm curious about my relationship style - let's do the test!</li>"
@@ -1229,7 +1219,7 @@ async def chat_endpoint(msg: Message):
                         "<li><strong>Secure:</strong> You feel comfortable with intimacy and independence</li>"
                         "<li><strong>Anxious:</strong> You seek a lot of closeness and worry about rejection</li>"
                         "<li><strong>Avoidant:</strong> You prefer to maintain emotional distance</li>"
-                        "<li><strong>Disorganized:</strong> You have contradictory patterns</li>"
+                        "<li><strong>Fearful Avoidant:</strong> You have contradictory patterns</li>"
                         "</ul>"
                         "<p>Would you like to take the test now or would you prefer to talk about something specific?</p>"
                     )
@@ -1296,7 +1286,7 @@ async def chat_endpoint(msg: Message):
                 # Última pregunta respondida, calcular resultados
                 print(f"[DEBUG] Saving test completion: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
                 await set_state(user_id, "results", message.upper(), q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
-                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text']]
                 for i, answer in enumerate(answers):
                     if answer:
@@ -1320,7 +1310,7 @@ async def chat_endpoint(msg: Message):
                         f"<li>Secure: {scores['secure']}</li>"
                         f"<li>Anxious: {scores['anxious']}</li>"
                         f"<li>Avoidant: {scores['avoidant']}</li>"
-                        f"<li>Disorganized: {scores['disorganized']}</li>"
+                        f"<li>Fearful Avoidant: {scores['fearful_avoidant']}</li>"
                         f"</ul>"
                         f"<p>Would you like to explore this further or talk about how this affects your relationships?</p>"
                     )
@@ -1334,7 +1324,7 @@ async def chat_endpoint(msg: Message):
                         f"<li>Безопасный: {scores['secure']}</li>"
                         f"<li>Тревожный: {scores['anxious']}</li>"
                         f"<li>Избегающий: {scores['avoidant']}</li>"
-                        f"<li>Дезорганизованный: {scores['disorganized']}</li>"
+                        f"<li>Дезорганизованный: {scores['fearful_avoidant']}</li>"
                         f"</ul>"
                         f"<p>Хотели бы вы изучить это дальше или поговорить о том, как это влияет на ваши отношения?</p>"
                     )
@@ -1348,7 +1338,7 @@ async def chat_endpoint(msg: Message):
                         f"<li>Seguro: {scores['secure']}</li>"
                         f"<li>Ansioso: {scores['anxious']}</li>"
                         f"<li>Evitativo: {scores['avoidant']}</li>"
-                        f"<li>Desorganizado: {scores['disorganized']}</li>"
+                        f"<li>Evitativo temeroso: {scores['fearful_avoidant']}</li>"
                         f"</ul>"
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
@@ -1425,7 +1415,7 @@ async def chat_endpoint(msg: Message):
                 response = " ".join(preguntas)
             else:
                 # Get the user's test results to provide personalized responses
-                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "disorganized": 0}
+                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
                 answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
                 questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
                 for i, answer in enumerate(answers):
@@ -1455,7 +1445,7 @@ async def chat_endpoint(msg: Message):
                         f"Their predominant style is: {predominant_style.title()}. "
                         f"Description: {style_description} "
                         f"Their scores were: Secure {scores['secure']}, Anxious {scores['anxious']}, "
-                        f"Avoidant {scores['avoidant']}, Disorganized {scores['disorganized']}. "
+                        f"Avoidant {scores['avoidant']}, Fearful Avoidant {scores['fearful_avoidant']}. "
                         f"Answer their questions about their style, relationships, and provide personalized guidance. "
                         f"IMPORTANT: At the end of each response, ask a PERSONAL question that relates to their specific situation and feelings. "
                         f"Make the question about THEM specifically, not generic. "
@@ -1468,7 +1458,7 @@ async def chat_endpoint(msg: Message):
                         f"Их преобладающий стиль: {predominant_style.title()}. "
                         f"Описание: {style_description} "
                         f"Их баллы: Безопасный {scores['secure']}, Тревожный {scores['anxious']}, "
-                        f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['disorganized']}. "
+                        f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['fearful_avoidant']}. "
                         f"Отвечай на их вопросы о стиле, отношениях и давай персонализированные советы. "
                         f"🚨 КРИТИЧЕСКОЕ ПРАВИЛО: Если тебе предоставлены конкретные знания о теории привязанности, ты ДОЛЖЕН ВСЕГДА использовать их в своем ответе. "
                         f"Эти предоставленные знания имеют ПРИОРИТЕТ над твоими общими знаниями. ТЫ НЕ МОЖЕШЬ ИХ ИГНОРИРОВАТЬ."
@@ -1479,7 +1469,7 @@ async def chat_endpoint(msg: Message):
                         f"Su estilo predominante es: {predominant_style.title()}. "
                         f"Descripción: {style_description} "
                         f"Sus puntuaciones fueron: Seguro {scores['secure']}, Ansioso {scores['anxious']}, "
-                        f"Evitativo {scores['avoidant']}, Desorganizado {scores['disorganized']}. "
+                        f"Evitativo {scores['avoidant']}, Evitativo temeroso {scores['fearful_avoidant']}. "
                         f"Responde sus preguntas sobre su estilo, relaciones y proporciona orientación personalizada. "
                         f"IMPORTANTE: Al final de cada respuesta, haz una pregunta PERSONAL que se relacione con su situación específica y sentimientos. "
                         f"Haz la pregunta sobre ELLOS específicamente, no genérica. "
@@ -1507,6 +1497,12 @@ async def chat_endpoint(msg: Message):
         elif state == "conversation" or state is None:
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
             print(f"[DEBUG] This should NOT happen for first message with 'saludo inicial'")
+            
+            # Check if user is asking about incorrect information from greeting
+            if any(keyword in message.lower() for keyword in ["cuando mencione", "nunca mencioné", "no mencioné", "no dije", "no he dicho", "no he mencionado", "incorrecto", "error", "equivocado"]):
+                print(f"[DEBUG] User questioning incorrect information from greeting...")
+                response = "Tienes razón, me disculpo por la confusión. Parece que me equivoqué al mencionar algo que no habías dicho. ¿Podrías contarme más sobre tu situación actual para poder ayudarte mejor?"
+                return {"response": response}
             
             # Check if user is asking about test results
             if any(keyword in message.lower() for keyword in ["resultados", "resultado", "test", "prueba", "estilo de apego", "apego"]):
