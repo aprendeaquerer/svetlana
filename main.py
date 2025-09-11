@@ -616,7 +616,28 @@ async def load_user_context(user_id):
     # Calculate test results if test is completed
     test_results = None
     print(f"[DEBUG] Test answers for {user_id}: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={q10}")
-    if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
+    
+    # Check if user has old test format (answers that don't start with A), B), C), D))
+    has_old_test_format = any(
+        answer and not answer.startswith(('A) ', 'B) ', 'C) ', 'D) '))
+        for answer in [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+    )
+    
+    if has_old_test_format:
+        print(f"[DEBUG] User {user_id} has old test format - clearing test data and treating as new user")
+        # Clear old test data
+        await database.execute("""
+            UPDATE test_state SET 
+                q1 = NULL, q2 = NULL, q3 = NULL, q4 = NULL, q5 = NULL,
+                q6 = NULL, q7 = NULL, q8 = NULL, q9 = NULL, q10 = NULL,
+                state = 'greeting'
+            WHERE user_id = :user_id
+        """, values={"user_id": user_id})
+        # Clear user context cache
+        clear_user_context_cache(user_id)
+        # Set test results as not completed
+        test_results = {"completed": False}
+    elif any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
         print(f"[DEBUG] Calculating test results for {user_id}...")
         scores = {"anxious": 0, "avoidant": 0, "secure": 0, "fearful_avoidant": 0}
         answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
@@ -994,18 +1015,27 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Conversation history for personalized greeting: {len(history)} messages")
             
             if history and len(history) > 0:
-                # Additional check: ensure the user has actually had a meaningful conversation, not just initial greetings
-                has_meaningful_conversation = any(
-                    msg.get('content', '').lower() not in ['saludo inicial', 'hola', 'hi', 'hello'] 
-                    for msg in history
+                # Check if user has old test format (contaminated data)
+                has_old_test_format = any(
+                    answer and not answer.startswith(('A) ', 'B) ', 'C) ', 'D) '))
+                    for answer in [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
                 )
                 
-                if has_meaningful_conversation:
-                    # Get user info from profile if available
-                    nombre = user_profile.get("nombre") if user_profile else None
-                    nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
-                    fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
-                    estado_emocional = user_profile.get("estado_emocional") if user_profile else None
+                if has_old_test_format:
+                    print(f"[DEBUG] User has old test format - treating as new user, skipping personalized greeting")
+                else:
+                    # Additional check: ensure the user has actually had a meaningful conversation, not just initial greetings
+                    has_meaningful_conversation = any(
+                        msg.get('content', '').lower() not in ['saludo inicial', 'hola', 'hi', 'hello'] 
+                        for msg in history
+                    )
+                    
+                    if has_meaningful_conversation:
+                        # Get user info from profile if available
+                        nombre = user_profile.get("nombre") if user_profile else None
+                        nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                        fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
+                        estado_emocional = user_profile.get("estado_emocional") if user_profile else None
                     
                     fecha_str = ""
                     if fecha_ultima:
