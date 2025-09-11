@@ -808,51 +808,55 @@ async def chat_endpoint(msg: Message):
         test_results = user_context.get("test_results", {})
         conversation_history = user_context.get("conversation_history", [])
         
-        # --- NUEVO: Detectar primer mensaje del día (solo para usuarios registrados) ---
-        primer_mensaje_dia = False
-        # Skip personalized greeting if user is in post_test state (just completed test)
-        if state != "post_test" and user_id != "invitado":  # Solo para usuarios registrados, no invitados
-            user_profile = await get_user_profile(user_id)
-            hoy = datetime.date.today()
-            if user_profile and user_profile.get("fecha_ultima_conversacion"):
-                try:
-                    fecha_ultima = user_profile["fecha_ultima_conversacion"]
-                    if isinstance(fecha_ultima, str):
-                        fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
-                    if fecha_ultima.date() < hoy:
-                        primer_mensaje_dia = True
-                except Exception as e:
-                    print(f"[DEBUG] Error parsing fecha_ultima_conversacion: {e}")
-                    primer_mensaje_dia = True
-            elif user_profile:
-                primer_mensaje_dia = True
-        
-        # Si es el primer mensaje del día, generar saludo personalizado pero seguro
-        if primer_mensaje_dia:
-            try:
-                print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado...")
+        # Check if user is in post_test state first - this takes priority over everything else
+        if state == "post_test":
+            print(f"[DEBUG] User is in post_test state - skipping all other logic")
+            # Continue to post_test handling below
+        else:
+            # --- NUEVO: Detectar primer mensaje del día (solo para usuarios registrados) ---
+            primer_mensaje_dia = False
+            if user_id != "invitado":  # Solo para usuarios registrados, no invitados
                 user_profile = await get_user_profile(user_id)
-                
-                # Solo usar información verificada del perfil del usuario, no del historial
-                nombre = user_profile.get("nombre") if user_profile else None
-                nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
-                estado_emocional = user_profile.get("estado_emocional") if user_profile else None
-                
-                # Crear saludo personalizado pero seguro
-                if nombre:
-                    response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
-                    if nombre_pareja:
-                        response += f" ¿Y cómo ha estado {nombre_pareja}?"
-                else:
-                    response = "¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
-                
-                # Actualizar la fecha de última conversación
-                await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
-                return {"response": response}
-            except Exception as e:
-                print(f"[DEBUG] Error generating personalized greeting: {e}")
-                import traceback
-                print(f"[DEBUG] Personalized greeting error traceback: {traceback.format_exc()}")
+                hoy = datetime.date.today()
+                if user_profile and user_profile.get("fecha_ultima_conversacion"):
+                    try:
+                        fecha_ultima = user_profile["fecha_ultima_conversacion"]
+                        if isinstance(fecha_ultima, str):
+                            fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
+                        if fecha_ultima.date() < hoy:
+                            primer_mensaje_dia = True
+                    except Exception as e:
+                        print(f"[DEBUG] Error parsing fecha_ultima_conversacion: {e}")
+                        primer_mensaje_dia = True
+                elif user_profile:
+                    primer_mensaje_dia = True
+            
+            # Si es el primer mensaje del día, generar saludo personalizado pero seguro
+            if primer_mensaje_dia:
+                try:
+                    print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado...")
+                    user_profile = await get_user_profile(user_id)
+                    
+                    # Solo usar información verificada del perfil del usuario, no del historial
+                    nombre = user_profile.get("nombre") if user_profile else None
+                    nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                    estado_emocional = user_profile.get("estado_emocional") if user_profile else None
+                    
+                    # Crear saludo personalizado pero seguro
+                    if nombre:
+                        response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
+                        if nombre_pareja:
+                            response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                    else:
+                        response = "¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
+                    
+                    # Actualizar la fecha de última conversación
+                    await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                    return {"response": response}
+                except Exception as e:
+                    print(f"[DEBUG] Error generating personalized greeting: {e}")
+                    import traceback
+                    print(f"[DEBUG] Personalized greeting error traceback: {traceback.format_exc()}")
                 # Fall back to normal greeting if personalized greeting fails
                 print("[DEBUG] Falling back to normal greeting due to personalized greeting error")
 
@@ -887,7 +891,8 @@ async def chat_endpoint(msg: Message):
             
             # --- NUEVO: Auto-greeting para usuarios con historial (cualquier mensaje) ---
             auto_greeting = False
-            if user_id != "invitado" and not primer_mensaje_dia and state == "greeting":
+            # Skip auto-greeting if user is in post_test state
+            if state != "post_test" and user_id != "invitado" and not primer_mensaje_dia and state == "greeting":
                 # Check if user has conversation history and is in greeting state
                 history = await load_conversation_history(user_id, limit=5)
                 # Only trigger auto-greeting if user has meaningful conversation history (more than just initial greetings)
