@@ -65,6 +65,38 @@ except ImportError as e:
         }
         return descriptions.get(language, descriptions["es"]).get(style, "")
 
+# Daily affirmations for each attachment style
+DAILY_AFFIRMATIONS = {
+    "anxious": [
+        "Soy digno de amor y conexión auténtica. Mis relaciones son seguras y estables.",
+        "Puedo expresar mis necesidades sin miedo al rechazo. Soy valioso tal como soy.",
+        "Confío en que las personas que me aman no me van a abandonar. Estoy seguro en mis relaciones.",
+        "Mis emociones son válidas y merecen ser escuchadas. Soy amado incondicionalmente.",
+        "Puedo dar espacio a los demás sin sentir que me están rechazando. El amor no se acaba."
+    ],
+    "avoidant": [
+        "Puedo ser vulnerable y cercano sin perder mi independencia. La intimidad me enriquece.",
+        "Está bien necesitar apoyo emocional. Pedir ayuda es una fortaleza, no una debilidad.",
+        "Puedo confiar en los demás sin sentir que pierdo mi autonomía. El amor me hace más fuerte.",
+        "Mis emociones son importantes y merecen ser compartidas. La conexión emocional es valiosa.",
+        "Puedo abrirme a la intimidad sin miedo a ser herido. Soy digno de amor profundo."
+    ],
+    "secure": [
+        "Mantengo el equilibrio perfecto entre cercanía e independencia. Mis relaciones son saludables.",
+        "Confío en mi capacidad para amar y ser amado. Las relaciones me nutren y enriquecen.",
+        "Puedo comunicar mis necesidades claramente y escuchar las de los demás con empatía.",
+        "Mis relaciones están basadas en respeto mutuo y apoyo incondicional. Soy un gran compañero.",
+        "El amor y la conexión son pilares fundamentales de mi bienestar. Cultivo relaciones significativas."
+    ],
+    "disorganized": [
+        "Puedo encontrar seguridad en mis relaciones. El amor es un lugar seguro para mí.",
+        "Merezco relaciones estables y predecibles. Puedo confiar en las personas que me aman.",
+        "Mis emociones contradictorias son normales. Puedo manejarlas con compasión y paciencia.",
+        "Puedo crear patrones de relación saludables. El amor verdadero me trae paz y estabilidad.",
+        "Soy digno de amor consistente y confiable. Puedo construir relaciones seguras y duraderas."
+    ]
+}
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -844,6 +876,14 @@ async def chat_endpoint(msg: Message):
                     nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
                     estado_emocional = user_profile.get("estado_emocional") if user_profile else None
                     
+                    # Check if user should be offered a daily affirmation
+                    affirmation_response = ""
+                    if await should_offer_affirmation(user_id):
+                        print(f"[DEBUG] Offering daily affirmation in personalized greeting to user {user_id}")
+                        affirmation = await get_daily_affirmation(user_id)
+                        if affirmation:
+                            affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+                    
                     # Crear saludo personalizado pero seguro
                     if nombre:
                         response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
@@ -851,6 +891,8 @@ async def chat_endpoint(msg: Message):
                             response += f" ¿Y cómo ha estado {nombre_pareja}?"
                     else:
                         response = "¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido desde nuestra última conversación?"
+                    
+                    response += affirmation_response
                     
                     # Actualizar la fecha de última conversación
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
@@ -1538,6 +1580,14 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] ENTERED: normal conversation (state == 'conversation' or state is None)")
             print(f"[DEBUG] This should NOT happen for first message with 'saludo inicial'")
             
+            # Check if user should be offered a daily affirmation
+            if await should_offer_affirmation(user_id):
+                print(f"[DEBUG] Offering daily affirmation to user {user_id}")
+                affirmation = await get_daily_affirmation(user_id)
+                if affirmation:
+                    response = f"💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\"<br><br>¿Te gustaría reflexionar sobre esta afirmación o prefieres que hablemos de otra cosa?"
+                    return {"response": response}
+            
             # Check if user is asking about incorrect information from greeting
             if any(keyword in message.lower() for keyword in ["cuando mencione", "nunca mencioné", "no mencioné", "no dije", "no he dicho", "no he mencionado", "incorrecto", "error", "equivocado"]):
                 print(f"[DEBUG] User questioning incorrect information from greeting...")
@@ -1744,7 +1794,7 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
         return []
 
 # Funciones para guardar y recuperar datos personales del usuario
-async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, tiempo_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None):
+async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, tiempo_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None, fecha_ultima_afirmacion=None, afirmacion_anxious=None, afirmacion_avoidant=None, afirmacion_secure=None, afirmacion_disorganized=None):
     if not database or not database.is_connected:
         return False
     
@@ -1770,7 +1820,12 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
         "opinion_apego": opinion_apego,
         "fecha_ultima_conversacion": fecha_ultima_conversacion,
         "fecha_ultima_mencion_pareja": fecha_ultima_mencion_pareja,
-        "attachment_style": attachment_style
+        "attachment_style": attachment_style,
+        "fecha_ultima_afirmacion": fecha_ultima_afirmacion,
+        "afirmacion_anxious": afirmacion_anxious,
+        "afirmacion_avoidant": afirmacion_avoidant,
+        "afirmacion_secure": afirmacion_secure,
+        "afirmacion_disorganized": afirmacion_disorganized
     }
     if row:
         # Update
@@ -1786,16 +1841,67 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
                 opinion_apego = COALESCE(:opinion_apego, opinion_apego),
                 fecha_ultima_conversacion = COALESCE(:fecha_ultima_conversacion, fecha_ultima_conversacion),
                 fecha_ultima_mencion_pareja = COALESCE(:fecha_ultima_mencion_pareja, fecha_ultima_mencion_pareja),
-                attachment_style = COALESCE(:attachment_style, attachment_style)
+                attachment_style = COALESCE(:attachment_style, attachment_style),
+                fecha_ultima_afirmacion = COALESCE(:fecha_ultima_afirmacion, fecha_ultima_afirmacion),
+                afirmacion_anxious = COALESCE(:afirmacion_anxious, afirmacion_anxious),
+                afirmacion_avoidant = COALESCE(:afirmacion_avoidant, afirmacion_avoidant),
+                afirmacion_secure = COALESCE(:afirmacion_secure, afirmacion_secure),
+                afirmacion_disorganized = COALESCE(:afirmacion_disorganized, afirmacion_disorganized)
             WHERE user_id = :user_id
         """, values)
     else:
         # Insert
         await database.execute("""
-            INSERT INTO user_profile (user_id, nombre, edad, tiene_pareja, nombre_pareja, tiempo_pareja, estado_emocional, estado_relacion, opinion_apego, fecha_ultima_conversacion, fecha_ultima_mencion_pareja, attachment_style)
-            VALUES (:user_id, :nombre, :edad, :tiene_pareja, :nombre_pareja, :tiempo_pareja, :estado_emocional, :estado_relacion, :opinion_apego, :fecha_ultima_conversacion, :fecha_ultima_mencion_pareja, :attachment_style)
+            INSERT INTO user_profile (user_id, nombre, edad, tiene_pareja, nombre_pareja, tiempo_pareja, estado_emocional, estado_relacion, opinion_apego, fecha_ultima_conversacion, fecha_ultima_mencion_pareja, attachment_style, fecha_ultima_afirmacion, afirmacion_anxious, afirmacion_avoidant, afirmacion_secure, afirmacion_disorganized)
+            VALUES (:user_id, :nombre, :edad, :tiene_pareja, :nombre_pareja, :tiempo_pareja, :estado_emocional, :estado_relacion, :opinion_apego, :fecha_ultima_conversacion, :fecha_ultima_mencion_pareja, :attachment_style, :fecha_ultima_afirmacion, :afirmacion_anxious, :afirmacion_avoidant, :afirmacion_secure, :afirmacion_disorganized)
         """, values)
     return True
+
+async def should_offer_affirmation(user_id):
+    """Check if user should be offered a daily affirmation"""
+    if not database or not database.is_connected:
+        return False
+    
+    user_profile = await get_user_profile(user_id)
+    if not user_profile or not user_profile.get("attachment_style"):
+        return False
+    
+    # Check if user has already received an affirmation today
+    fecha_ultima_afirmacion = user_profile.get("fecha_ultima_afirmacion")
+    if fecha_ultima_afirmacion:
+        try:
+            if isinstance(fecha_ultima_afirmacion, str):
+                fecha_ultima_afirmacion = datetime.datetime.fromisoformat(fecha_ultima_afirmacion)
+            hoy = datetime.date.today()
+            if fecha_ultima_afirmacion.date() >= hoy:
+                return False  # Already received affirmation today
+        except Exception as e:
+            print(f"[DEBUG] Error parsing fecha_ultima_afirmacion: {e}")
+    
+    return True
+
+async def get_daily_affirmation(user_id):
+    """Get a random daily affirmation for the user's attachment style"""
+    user_profile = await get_user_profile(user_id)
+    if not user_profile:
+        return None
+    
+    attachment_style = user_profile.get("attachment_style")
+    if not attachment_style or attachment_style not in DAILY_AFFIRMATIONS:
+        return None
+    
+    import random
+    affirmations = DAILY_AFFIRMATIONS[attachment_style]
+    selected_affirmation = random.choice(affirmations)
+    
+    # Save the affirmation and update the date
+    await save_user_profile(
+        user_id, 
+        fecha_ultima_afirmacion=datetime.datetime.now(),
+        **{f"afirmacion_{attachment_style}": selected_affirmation}
+    )
+    
+    return selected_affirmation
 
 async def get_user_profile(user_id):
     if not database or not database.is_connected:

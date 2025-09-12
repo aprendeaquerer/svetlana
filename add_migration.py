@@ -75,7 +75,12 @@ async def migrate_user_profile(database):
             opinion_apego TEXT,
             fecha_ultima_conversacion TIMESTAMP,
             fecha_ultima_mencion_pareja TIMESTAMP,
-            attachment_style TEXT
+            attachment_style TEXT,
+            fecha_ultima_afirmacion TIMESTAMP,
+            afirmacion_anxious TEXT,
+            afirmacion_avoidant TEXT,
+            afirmacion_secure TEXT,
+            afirmacion_disorganized TEXT
         )
     ''')
     # Intentar agregar las columnas si la tabla ya existe
@@ -85,6 +90,26 @@ async def migrate_user_profile(database):
         pass  # Ya existe
     try:
         await database.execute('ALTER TABLE user_profile ADD COLUMN tiempo_pareja TEXT')
+    except Exception:
+        pass  # Ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN fecha_ultima_afirmacion TIMESTAMP')
+    except Exception:
+        pass  # Ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN afirmacion_anxious TEXT')
+    except Exception:
+        pass  # Ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN afirmacion_avoidant TEXT')
+    except Exception:
+        pass  # Ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN afirmacion_secure TEXT')
+    except Exception:
+        pass  # Ya existe
+    try:
+        await database.execute('ALTER TABLE user_profile ADD COLUMN afirmacion_disorganized TEXT')
     except Exception:
         pass  # Ya existe
     return True
