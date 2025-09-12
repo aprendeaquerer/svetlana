@@ -1014,42 +1014,88 @@ async def chat_endpoint(msg: Message):
                 else:
                     print("[DEBUG] Auto-greeting NOT triggered - insufficient conversation history")
             
-            # Si es auto-greeting, generar saludo personalizado pero seguro
+            # Si es auto-greeting, usar la misma lógica que el saludo inicial
             if auto_greeting:
                 try:
-                    print("[DEBUG] Auto-greeting detected, generating personalized greeting...")
-                    user_profile = await get_user_profile(user_id)
+                    print("[DEBUG] Auto-greeting detected, using same logic as saludo inicial...")
                     
-                    # Solo usar información verificada del perfil del usuario
-                    nombre = user_profile.get("nombre") if user_profile else None
-                    nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
-                    fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
+                    # Use the same logic as the "saludo inicial" greeting
+                    test_completed = test_results.get("completed", False)
+                    attachment_style = test_results.get("style") if test_completed else None
                     
-                    # Calcular tiempo transcurrido
-                    fecha_str = ""
-                    if fecha_ultima:
-                        try:
-                            if isinstance(fecha_ultima, str):
-                                fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
-                            dias = (datetime.datetime.now() - fecha_ultima).days
-                            if dias == 0:
-                                fecha_str = " hoy"
-                            elif dias == 1:
-                                fecha_str = " ayer"
-                            elif dias < 7:
-                                fecha_str = f" hace {dias} días"
-                            else:
-                                fecha_str = f" hace {dias} días"
-                        except Exception as e:
-                            print(f"[DEBUG] Error calculating time difference: {e}")
-                    
-                    # Crear saludo personalizado pero seguro
-                    if nombre:
-                        response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                        if nombre_pareja:
-                            response += f" ¿Y cómo ha estado {nombre_pareja}?"
+                    if test_completed and attachment_style:
+                        # User has completed test - offer insights about their results
+                        print(f"[DEBUG] Auto-greeting: User has completed test with style: {attachment_style}")
+                        style_description = test_results.get("description", "")
+                        
+                        # Check if user should be offered a daily affirmation
+                        affirmation_response = ""
+                        if await should_offer_affirmation(user_id):
+                            print(f"[DEBUG] Offering daily affirmation in auto-greeting to user {user_id}")
+                            affirmation = await get_daily_affirmation(user_id)
+                            if affirmation:
+                                affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+                        
+                        if msg.language == "en":
+                            if attachment_style == "secure":
+                                response = (
+                                    f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
+                                    f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
+                                    f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
+                                    f"{affirmation_response}"
+                                    f"<p><strong>To help you better:</strong> If you tell me more about your age, gender, and relationship status, I'll be able to provide more tailored content and advice for your specific situation.</p>"
+                                    f"<p>What would you like to explore today? We could dive deeper into your attachment style, chat about your relationships, or work on anything else that's on your mind.</p>"
+                                )
+                            else:  # avoidant, anxious, or disorganized
+                                response = (
+                                    f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
+                                    f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
+                                    f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
+                                    f"<p><strong>Here's something important to know:</strong> Attachment styles are fluid and can change with awareness and work. The goal is to develop what we call 'earned secure attachment' - where you can maintain the healthy aspects of your current style while developing more secure patterns.</p>"
+                                    f"<p>The first step is acknowledging your current patterns, which you've already done by taking the test. Now we can start working together to help you move toward more secure attachment.</p>"
+                                    f"{affirmation_response}"
+                                    f"<p><strong>To help you better:</strong> If you tell me more about your age, gender, and relationship status, I'll be able to provide more tailored content and advice for your specific situation.</p>"
+                                    f"<p>What would you like to explore today? We could dive deeper into your attachment style, work on developing more secure patterns, chat about your relationships, or work on anything else that's on your mind.</p>"
+                                )
+                        else:  # Spanish
+                            if attachment_style == "secure":
+                                response = (
+                                    f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
+                                    f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
+                                    f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
+                                    f"{affirmation_response}"
+                                    f"<p><strong>Para ayudarte mejor:</strong> Si me cuentas más sobre tu edad, género y estado de relación, podré ofrecerte contenido y consejos más personalizados para tu situación específica.</p>"
+                                    f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
+                                )
+                            else:  # avoidant, anxious, or disorganized
+                                response = (
+                                    f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
+                                    f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
+                                    f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
+                                    f"<p><strong>Algo importante que debes saber:</strong> Los estilos de apego son fluidos y pueden cambiar con conciencia y trabajo. El objetivo es desarrollar lo que llamamos 'apego seguro ganado' - donde puedes mantener los aspectos saludables de tu estilo actual mientras desarrollas patrones más seguros.</p>"
+                                    f"<p>El primer paso es reconocer tus patrones actuales, lo cual ya has hecho al tomar el test. Ahora podemos empezar a trabajar juntos para ayudarte a avanzar hacia un apego más seguro.</p>"
+                                    f"{affirmation_response}"
+                                    f"<p><strong>Para ayudarte mejor:</strong> Si me cuentas más sobre tu edad, género y estado de relación, podré ofrecerte contenido y consejos más personalizados para tu situación específica.</p>"
+                                    f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, trabajar en desarrollar patrones más seguros, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
+                                )
                     else:
-                        response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
+                        # User has conversation history but no test - use simple greeting
+                        print(f"[DEBUG] Auto-greeting: User has conversation history but no test")
+                        user_profile = await get_user_profile(user_id)
+                        nombre = user_profile.get("nombre") if user_profile else None
+                        
+                        if msg.language == "en":
+                            response = (
+                                f"<p>Hey{f' {nombre}' if nombre else ''}! 😊 Great to see you again!</p>"
+                                f"<p>I remember we've chatted before, and I'd love to continue our conversation. How have you been feeling lately?</p>"
+                                f"<p>If you're interested, I could also guide you through the attachment style test to help you understand your relationship patterns better.</p>"
+                            )
+                        else:  # Spanish
+                            response = (
+                                f"<p>¡Hola{f' {nombre}' if nombre else ''}! 😊 ¡Qué gusto verte de nuevo!</p>"
+                                f"<p>Recuerdo que hemos charlado antes, y me encantaría continuar nuestra conversación. ¿Cómo te has sentido últimamente?</p>"
+                                f"<p>Si te interesa, también podría guiarte a través del test de estilos de apego para ayudarte a entender mejor tus patrones de relación.</p>"
+                            )
                     
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                     # Change state to conversation so user can have normal conversations
