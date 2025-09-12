@@ -1142,21 +1142,43 @@ async def chat_endpoint(msg: Message):
                         affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
                 
                 if msg.language == "en":
-                    response = (
-                        f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
-                        f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
-                        f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
-                        f"{affirmation_response}"
-                        f"<p>What would you like to explore today? We could dive deeper into your attachment style, chat about your relationships, or work on anything else that's on your mind.</p>"
-                    )
+                    if attachment_style == "secure":
+                        response = (
+                            f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
+                            f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
+                            f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
+                            f"{affirmation_response}"
+                            f"<p>What would you like to explore today? We could dive deeper into your attachment style, chat about your relationships, or work on anything else that's on your mind.</p>"
+                        )
+                    else:  # avoidant, anxious, or disorganized
+                        response = (
+                            f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
+                            f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
+                            f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
+                            f"<p><strong>Here's something important to know:</strong> Attachment styles are fluid and can change with awareness and work. The goal is to develop what we call 'earned secure attachment' - where you can maintain the healthy aspects of your current style while developing more secure patterns.</p>"
+                            f"<p>The first step is acknowledging your current patterns, which you've already done by taking the test. Now we can start working together to help you move toward more secure attachment.</p>"
+                            f"{affirmation_response}"
+                            f"<p>What would you like to explore today? We could dive deeper into your attachment style, work on developing more secure patterns, chat about your relationships, or work on anything else that's on your mind.</p>"
+                        )
                 else:  # Spanish
-                    response = (
-                        f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
-                        f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
-                        f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
-                        f"{affirmation_response}"
-                        f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
-                    )
+                    if attachment_style == "secure":
+                        response = (
+                            f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
+                            f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
+                            f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
+                            f"{affirmation_response}"
+                            f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
+                        )
+                    else:  # avoidant, anxious, or disorganized
+                        response = (
+                            f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
+                            f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
+                            f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
+                            f"<p><strong>Algo importante que debes saber:</strong> Los estilos de apego son fluidos y pueden cambiar con conciencia y trabajo. El objetivo es desarrollar lo que llamamos 'apego seguro ganado' - donde puedes mantener los aspectos saludables de tu estilo actual mientras desarrollas patrones más seguros.</p>"
+                            f"<p>El primer paso es reconocer tus patrones actuales, lo cual ya has hecho al tomar el test. Ahora podemos empezar a trabajar juntos para ayudarte a avanzar hacia un apego más seguro.</p>"
+                            f"{affirmation_response}"
+                            f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, trabajar en desarrollar patrones más seguros, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
+                        )
                 
             elif history and len(history) > 2:
                 # User has conversation history but no test - check for meaningful conversation
