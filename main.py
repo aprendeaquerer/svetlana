@@ -832,7 +832,9 @@ async def chat_endpoint(msg: Message):
                     primer_mensaje_dia = True
             
             # Si es el primer mensaje del día, generar saludo personalizado pero seguro
-            if primer_mensaje_dia:
+            # PERO primero verificar si el usuario quiere hacer el test
+            test_triggers = ["test", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
+            if primer_mensaje_dia and message.lower() not in test_triggers:
                 try:
                     print("[DEBUG] Primer mensaje del día detectado, generando saludo personalizado...")
                     user_profile = await get_user_profile(user_id)
