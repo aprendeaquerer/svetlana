@@ -65,35 +65,95 @@ except ImportError as e:
         }
         return descriptions.get(language, descriptions["es"]).get(style, "")
 
-# Daily affirmations for each attachment style
+# Daily affirmations for each attachment style (20 per style, in sequential order)
 DAILY_AFFIRMATIONS = {
     "anxious": [
         "Soy digno de amor y conexión auténtica. Mis relaciones son seguras y estables.",
         "Puedo expresar mis necesidades sin miedo al rechazo. Soy valioso tal como soy.",
         "Confío en que las personas que me aman no me van a abandonar. Estoy seguro en mis relaciones.",
         "Mis emociones son válidas y merecen ser escuchadas. Soy amado incondicionalmente.",
-        "Puedo dar espacio a los demás sin sentir que me están rechazando. El amor no se acaba."
+        "Puedo dar espacio a los demás sin sentir que me están rechazando. El amor no se acaba.",
+        "Mi valor no depende de la aprobación de los demás. Soy suficiente tal como soy.",
+        "Puedo confiar en el amor que recibo. Las personas que me aman lo hacen genuinamente.",
+        "Está bien pedir tranquilidad cuando la necesito. Mis necesidades emocionales son importantes.",
+        "Puedo amar profundamente sin perder mi identidad. El amor me fortalece, no me debilita.",
+        "Mis relaciones pasadas no definen mi futuro. Puedo crear conexiones saludables y duraderas.",
+        "Puedo ser vulnerable sin sentirme expuesto. La intimidad es un regalo que doy y recibo.",
+        "Confío en mi capacidad para manejar el rechazo. Soy resiliente y fuerte emocionalmente.",
+        "Puedo establecer límites saludables sin sentir culpa. El respeto mutuo es fundamental.",
+        "Mis emociones intensas son una fortaleza, no una debilidad. Siento profundamente porque amo profundamente.",
+        "Puedo dar y recibir amor sin condiciones. El amor verdadero es incondicional.",
+        "Está bien necesitar tiempo para procesar mis emociones. Me doy el espacio que necesito.",
+        "Puedo confiar en que el amor perdurará. Las relaciones sólidas superan las dificultades.",
+        "Mi ansiedad no define quién soy. Soy mucho más que mis miedos y preocupaciones.",
+        "Puedo amar sin controlar. El amor verdadero respeta la libertad del otro.",
+        "Soy merecedor de amor consistente y confiable. Atraigo relaciones que me nutren y me apoyan."
     ],
     "avoidant": [
         "Puedo ser vulnerable y cercano sin perder mi independencia. La intimidad me enriquece.",
         "Está bien necesitar apoyo emocional. Pedir ayuda es una fortaleza, no una debilidad.",
         "Puedo confiar en los demás sin sentir que pierdo mi autonomía. El amor me hace más fuerte.",
         "Mis emociones son importantes y merecen ser compartidas. La conexión emocional es valiosa.",
-        "Puedo abrirme a la intimidad sin miedo a ser herido. Soy digno de amor profundo."
+        "Puedo abrirme a la intimidad sin miedo a ser herido. Soy digno de amor profundo.",
+        "La independencia y la conexión pueden coexistir. Puedo ser fuerte y vulnerable al mismo tiempo.",
+        "Puedo depender de otros sin perder mi identidad. La interdependencia es saludable.",
+        "Está bien mostrar mis emociones. La vulnerabilidad es un acto de valentía, no de debilidad.",
+        "Puedo confiar en que otros me apoyarán. No tengo que cargar todo solo.",
+        "La intimidad emocional me nutre y me hace crecer. Puedo abrirme sin perder mi esencia.",
+        "Puedo pedir lo que necesito sin sentir que soy una carga. Mis necesidades son válidas.",
+        "Está bien necesitar consuelo y apoyo. Todos necesitamos conexión humana.",
+        "Puedo amar profundamente sin sentir que pierdo control. El amor me da poder, no me lo quita.",
+        "Mis emociones son una guía valiosa. Puedo confiar en lo que siento.",
+        "Puedo ser cercano sin sentir que me ahogo. La proximidad emocional es liberadora.",
+        "Está bien necesitar tiempo para procesar. Puedo tomarme el tiempo que necesito.",
+        "Puedo confiar en que otros respetarán mis límites. La comunicación clara construye confianza.",
+        "La vulnerabilidad me conecta con mi humanidad. Puedo ser auténtico sin miedo.",
+        "Puedo recibir amor sin sentir que debo algo a cambio. El amor es un regalo libre.",
+        "Soy digno de conexión profunda y significativa. Puedo crear relaciones que me nutran."
     ],
     "secure": [
         "Mantengo el equilibrio perfecto entre cercanía e independencia. Mis relaciones son saludables.",
         "Confío en mi capacidad para amar y ser amado. Las relaciones me nutren y enriquecen.",
         "Puedo comunicar mis necesidades claramente y escuchar las de los demás con empatía.",
         "Mis relaciones están basadas en respeto mutuo y apoyo incondicional. Soy un gran compañero.",
-        "El amor y la conexión son pilares fundamentales de mi bienestar. Cultivo relaciones significativas."
+        "El amor y la conexión son pilares fundamentales de mi bienestar. Cultivo relaciones significativas.",
+        "Puedo ser vulnerable sin perder mi fuerza. La autenticidad me hace más poderoso.",
+        "Confío en que puedo manejar cualquier desafío en mis relaciones. Soy resiliente y adaptable.",
+        "Puedo dar y recibir amor sin condiciones. El amor verdadero es incondicional y libre.",
+        "Mis emociones son una guía confiable. Puedo confiar en lo que siento y expresarlo apropiadamente.",
+        "Puedo establecer límites saludables sin sentir culpa. El respeto mutuo es fundamental.",
+        "Está bien necesitar espacio y también cercanía. Puedo balancear ambas necesidades naturalmente.",
+        "Puedo confiar en que mis relaciones perdurarán. He construido conexiones sólidas y duraderas.",
+        "Soy un excelente comunicador emocional. Puedo expresar mis sentimientos con claridad y compasión.",
+        "Puedo amar profundamente sin perder mi identidad. El amor me enriquece, no me consume.",
+        "Mis relaciones están llenas de confianza y seguridad. He creado un ambiente de amor y apoyo.",
+        "Puedo manejar conflictos de manera constructiva. Los desacuerdos fortalecen mis relaciones.",
+        "Está bien pedir lo que necesito y dar lo que puedo. El equilibrio en las relaciones es natural para mí.",
+        "Puedo ser independiente y dependiente según lo que la situación requiera. Soy flexible y adaptable.",
+        "Confío en mi intuición sobre las personas. Puedo discernir quién es confiable y quién no.",
+        "Soy un ejemplo de amor saludable. Mis relaciones inspiran a otros a crear conexiones más profundas."
     ],
     "disorganized": [
         "Puedo encontrar seguridad en mis relaciones. El amor es un lugar seguro para mí.",
         "Merezco relaciones estables y predecibles. Puedo confiar en las personas que me aman.",
         "Mis emociones contradictorias son normales. Puedo manejarlas con compasión y paciencia.",
         "Puedo crear patrones de relación saludables. El amor verdadero me trae paz y estabilidad.",
-        "Soy digno de amor consistente y confiable. Puedo construir relaciones seguras y duraderas."
+        "Soy digno de amor consistente y confiable. Puedo construir relaciones seguras y duraderas.",
+        "Puedo confiar en que otros me apoyarán. No tengo que enfrentar la vida solo.",
+        "Mis emociones intensas son una fortaleza. Puedo usar mi sensibilidad para crear conexiones profundas.",
+        "Puedo establecer límites claros y saludables. El respeto mutuo me protege y me nutre.",
+        "Está bien necesitar tiempo para procesar mis emociones. Me doy el espacio que necesito.",
+        "Puedo amar sin miedo al abandono. El amor verdadero es constante y confiable.",
+        "Mis experiencias pasadas no definen mi futuro. Puedo crear nuevas historias de amor y conexión.",
+        "Puedo ser vulnerable sin sentir que me expongo al peligro. La intimidad es segura con las personas correctas.",
+        "Confío en que puedo manejar cualquier emoción que surja. Soy más fuerte de lo que creo.",
+        "Puedo comunicar mis necesidades sin miedo. La comunicación honesta fortalece mis relaciones.",
+        "Está bien necesitar tranquilidad y también cercanía. Puedo balancear ambas necesidades.",
+        "Puedo confiar en mi intuición sobre las personas. Sé quién es seguro y quién no.",
+        "Mis emociones son válidas y merecen ser escuchadas. Soy digno de comprensión y apoyo.",
+        "Puedo crear rutinas y patrones que me den seguridad. La estabilidad es posible para mí.",
+        "Puedo amar profundamente sin perder el control. El amor me da poder, no me lo quita.",
+        "Soy merecedor de relaciones que me nutran y me apoyen. Atraigo amor saludable y consistente."
     ]
 }
 
@@ -1881,7 +1941,7 @@ async def should_offer_affirmation(user_id):
     return True
 
 async def get_daily_affirmation(user_id):
-    """Get a random daily affirmation for the user's attachment style"""
+    """Get the next sequential daily affirmation for the user's attachment style"""
     user_profile = await get_user_profile(user_id)
     if not user_profile:
         return None
@@ -1890,9 +1950,24 @@ async def get_daily_affirmation(user_id):
     if not attachment_style or attachment_style not in DAILY_AFFIRMATIONS:
         return None
     
-    import random
     affirmations = DAILY_AFFIRMATIONS[attachment_style]
-    selected_affirmation = random.choice(affirmations)
+    
+    # Get the last affirmation for this style to determine the next one
+    last_affirmation = user_profile.get(f"afirmacion_{attachment_style}")
+    
+    if last_affirmation:
+        # Find the index of the last affirmation
+        try:
+            last_index = affirmations.index(last_affirmation)
+            next_index = (last_index + 1) % len(affirmations)  # Cycle back to 0 after 19
+        except ValueError:
+            # If last affirmation not found in list, start from 0
+            next_index = 0
+    else:
+        # First time, start with index 0
+        next_index = 0
+    
+    selected_affirmation = affirmations[next_index]
     
     # Save the affirmation and update the date
     await save_user_profile(
