@@ -1118,114 +1118,125 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             # Preserve existing test answers when resetting to greeting state
             await set_state(user_id, "greeting", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-            # --- NUEVO: Saludo personalizado para recurrentes ---
+            
+            # Get user context to determine appropriate greeting
             user_profile = await get_user_profile(user_id)
-            print(f"[DEBUG] User profile for personalized greeting: {user_profile}")
-            
-            # Check if user has conversation history (for personalized greeting)
             history = await load_conversation_history(user_id, limit=20)
-            print(f"[DEBUG] Conversation history for personalized greeting: {len(history)} messages")
+            test_completed = test_results.get("completed", False)
+            attachment_style = test_results.get("style") if test_completed else None
             
-            if history and len(history) > 0:
-                # Check if user has old test format (contaminated data)
-                has_old_test_format = any(
-                    answer and not answer.startswith(('A) ', 'B) ', 'C) ', 'D) '))
-                    for answer in [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+            print(f"[DEBUG] User context - Profile: {bool(user_profile)}, History: {len(history)} messages, Test completed: {test_completed}, Style: {attachment_style}")
+            
+            # Determine greeting type based on actual user state
+            if test_completed and attachment_style:
+                # User has completed test - offer insights about their results
+                print(f"[DEBUG] User has completed test with style: {attachment_style}")
+                style_description = test_results.get("description", "")
+                
+                # Check if user should be offered a daily affirmation
+                affirmation_response = ""
+                if await should_offer_affirmation(user_id):
+                    print(f"[DEBUG] Offering daily affirmation in test results greeting to user {user_id}")
+                    affirmation = await get_daily_affirmation(user_id)
+                    if affirmation:
+                        affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+                
+                if msg.language == "en":
+                    response = (
+                        f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
+                        f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
+                        f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
+                        f"{affirmation_response}"
+                        f"<p>What would you like to explore today? We could dive deeper into your attachment style, chat about your relationships, or work on anything else that's on your mind.</p>"
+                    )
+                else:  # Spanish
+                    response = (
+                        f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
+                        f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
+                        f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
+                        f"{affirmation_response}"
+                        f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
+                    )
+                
+            elif history and len(history) > 2:
+                # User has conversation history but no test - check for meaningful conversation
+                has_meaningful_conversation = any(
+                    msg.get('content', '').lower() not in ['saludo inicial', 'hola', 'hi', 'hello', 'initial greeting'] 
+                    for msg in history
                 )
                 
-                if has_old_test_format:
-                    print(f"[DEBUG] User has old test format - treating as new user, skipping personalized greeting")
-                else:
-                    # Additional check: ensure the user has actually had a meaningful conversation, not just initial greetings
-                    has_meaningful_conversation = any(
-                        msg.get('content', '').lower() not in ['saludo inicial', 'hola', 'hi', 'hello'] 
-                        for msg in history
-                    )
+                if has_meaningful_conversation:
+                    print(f"[DEBUG] User has meaningful conversation history but no test")
+                    nombre = user_profile.get("nombre") if user_profile else None
                     
-                    if has_meaningful_conversation:
-                        # Get user info from profile if available
-                        nombre = user_profile.get("nombre") if user_profile else None
-                        nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
-                        fecha_ultima = user_profile.get("fecha_ultima_conversacion") if user_profile else None
-                        estado_emocional = user_profile.get("estado_emocional") if user_profile else None
-                        
-                        fecha_str = ""
-                        if fecha_ultima:
-                            try:
-                                if isinstance(fecha_ultima, str):
-                                    fecha_ultima = datetime.datetime.fromisoformat(fecha_ultima)
-                                fecha_str = f" desde el {fecha_ultima.strftime('%d/%m/%Y')}"
-                            except Exception:
-                                fecha_str = ""
-                        
-                        # Create personalized greeting prompt based on conversation history
-                        saludo_prompt = (
-                            f"Eres Eldric, un coach emocional cálido y cercano. Vas a saludar a un usuario recurrente"
-                            + (f" llamado {nombre}" if nombre else "")
-                            + (f". Su pareja se llama {nombre_pareja}" if nombre_pareja else "")
-                            + (f". Su estado emocional anterior era: {estado_emocional}" if estado_emocional else "")
-                            + f". La última conversación fue{fecha_str}. "
-                            "Lee el siguiente historial y genera un saludo cálido y una o dos preguntas de seguimiento personalizadas, retomando temas, emociones o personas mencionadas. "
-                            "No ofrezcas el test ni menú, solo retoma la relación y muestra interés genuino.\n\n"
-                            "Historial:\n" +
-                            "\n".join([f"{m['role']}: {m['content']}" for m in history]) +
-                            "\n\nSaludo y preguntas de seguimiento:"
+                    if msg.language == "en":
+                        response = (
+                            f"<p>Hey{f' {nombre}' if nombre else ''}! 😊 Great to see you again!</p>"
+                            f"<p>I remember we've chatted before, and I'd love to continue our conversation. How have you been feeling lately?</p>"
+                            f"<p>If you're interested, I could also guide you through the attachment style test to help you understand your relationship patterns better.</p>"
                         )
-                        if chatbot:
-                            saludo_ia = await run_in_threadpool(chatbot.chat, saludo_prompt)
-                            response = saludo_ia
-                        else:
-                            if nombre:
-                                response = f"¡Hola {nombre}! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                                if nombre_pareja:
-                                    response += f" ¿Y cómo ha estado {nombre_pareja}?"
-                            else:
-                                response = f"¡Hola! Me alegra verte de nuevo. ¿Cómo te has sentido{fecha_str}?"
-                        await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
-                        # Change state to conversation so user can have normal conversations
-                        await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                        return {"response": response}
-                    else:
-                        print(f"[DEBUG] Personalized greeting NOT triggered - no meaningful conversation found")
+                    else:  # Spanish
+                        response = (
+                            f"<p>¡Hola{f' {nombre}' if nombre else ''}! 😊 ¡Qué gusto verte de nuevo!</p>"
+                            f"<p>Recuerdo que hemos charlado antes, y me encantaría continuar nuestra conversación. ¿Cómo te has sentido últimamente?</p>"
+                            f"<p>Si te interesa, también podría guiarte a través del test de estilos de apego para ayudarte a entender mejor tus patrones de relación.</p>"
+                        )
+                else:
+                    # User has history but only greetings - treat as new user
+                    print(f"[DEBUG] User has history but only greetings - treating as new user")
+                    if msg.language == "en":
+                        response = (
+                            "<p>Hey there! 😊 I'm <strong>Eldric</strong>, and I'm really excited to meet you! I'm here to chat about relationships and help you understand yourself better.</p>"
+                            "<p>You know how we all have different ways of connecting with people? Well, there are basically four main styles: <strong>secure, anxious, avoidant, and fearful avoidant</strong>. It's pretty fascinating stuff!</p>"
+                            "<p>I'd love to get to know you better. What sounds good to you?</p>"
+                            "<ul>"
+                            "<li>a) I'm curious about my relationship style - let's do the test!</li>"
+                            "<li>b) I'd rather chat about what's on my mind right now.</li>"
+                            "<li>c) Tell me more about these attachment styles first.</li>"
+                            "</ul>"
+                        )
+                    else:  # Spanish
+                        response = (
+                            "<p>¡Hola! 😊 Soy <strong>Eldric</strong>, y estoy muy emocionado de conocerte. Estoy aquí para charlar sobre relaciones y ayudarte a entenderte mejor.</p>"
+                            "<p>¿Sabes cómo todos tenemos diferentes formas de conectarnos con las personas? Bueno, básicamente hay cuatro estilos principales: <strong>seguro, ansioso, evitativo y desorganizado</strong>. ¡Es algo bastante fascinante!</p>"
+                            "<p>Me encantaría conocerte mejor. ¿Qué te parece bien?</p>"
+                            "<ul>"
+                            "<li>a) Tengo curiosidad por mi estilo de relación - ¡hagamos el test!</li>"
+                            "<li>b) Prefiero charlar de lo que tengo en mente ahora mismo.</li>"
+                            "<li>c) Cuéntame más sobre estos estilos de apego primero.</li>"
+                            "</ul>"
+                        )
             else:
-                print(f"[DEBUG] Personalized greeting NOT triggered - no conversation history found")
-                print(f"[DEBUG] User profile: {user_profile}")
-                print(f"[DEBUG] Conversation history: {len(history)} messages")
-            # --- FIN NUEVO ---
-            if msg.language == "en":
-                response = (
-                    "<p>Hey there! 😊 I'm <strong>Eldric</strong>, and I'm really excited to meet you! I'm here to chat about relationships and help you understand yourself better.</p>"
-                    "<p>You know how we all have different ways of connecting with people? Well, there are basically four main styles: <strong>secure, anxious, avoidant, and fearful avoidant</strong>. It's pretty fascinating stuff!</p>"
-                    "<p>I'd love to get to know you better. What sounds good to you?</p>"
-                    "<ul>"
-                    "<li>a) I'm curious about my relationship style - let's do the test!</li>"
-                    "<li>b) I'd rather just chat about what's on my mind right now.</li>"
-                    "<li>c) Tell me more about these attachment styles first.</li>"
-                    "</ul>"
-                )
-            elif msg.language == "ru":
-                response = (
-                    "<p>Привет! 😊 Я <strong>Элдрик</strong>, и я очень рад познакомиться с тобой! Я здесь, чтобы поговорить об отношениях и помочь тебе лучше понять себя.</p>"
-                    "<p>Знаешь, у всех нас есть разные способы связи с людьми? Ну, есть в основном четыре основных стиля: <strong>безопасный, тревожный, избегающий и дезорганизованный</strong>. Это довольно увлекательно!</p>"
-                    "<p>Мне бы хотелось узнать тебя получше. Что тебе нравится?</p>"
-                    "<ul>"
-                    "<li>а) Мне любопытно узнать мой стиль отношений - давай пройдем тест!</li>"
-                    "<li>б) Я бы предпочел просто поговорить о том, что у меня на уме прямо сейчас.</li>"
-                    "<li>в) Расскажи мне больше об этих стилях привязанности сначала.</li>"
-                    "</ul>"
-                )
-            else:  # Spanish (default)
-                response = (
-                    "<p>¡Hola! 😊 Soy <strong>Eldric</strong>, y estoy súper emocionado de conocerte. Estoy aquí para charlar sobre relaciones y ayudarte a entenderte mejor.</p>"
-                    "<p>¿Sabes que todos tenemos formas diferentes de conectar con las personas? Pues hay básicamente cuatro estilos principales: <strong>seguro, ansioso, evitativo y desorganizado</strong>. ¡Es súper interesante!</p>"
-                    "<p>Me encantaría conocerte mejor. ¿Qué te parece?</p>"
-                    "<ul>"
-                    "<li>a) Tengo curiosidad por mi estilo de relación - ¡hagamos el test!</li>"
-                    "<li>b) Prefiero charlar de lo que tengo en mente ahora mismo.</li>"
-                    "<li>c) Cuéntame más sobre estos estilos de apego primero.</li>"
-                    "</ul>"
-                )
-            print(f"[DEBUG] Set initial greeting response (forced): {response[:100]}...")
+                # New user - no history, no test
+                print(f"[DEBUG] New user - no history, no test")
+                if msg.language == "en":
+                    response = (
+                        "<p>Hey there! 😊 I'm <strong>Eldric</strong>, and I'm really excited to meet you! I'm here to chat about relationships and help you understand yourself better.</p>"
+                        "<p>You know how we all have different ways of connecting with people? Well, there are basically four main styles: <strong>secure, anxious, avoidant, and fearful avoidant</strong>. It's pretty fascinating stuff!</p>"
+                        "<p>I'd love to get to know you better. What sounds good to you?</p>"
+                        "<ul>"
+                        "<li>a) I'm curious about my relationship style - let's do the test!</li>"
+                        "<li>b) I'd rather chat about what's on my mind right now.</li>"
+                        "<li>c) Tell me more about these attachment styles first.</li>"
+                        "</ul>"
+                    )
+                else:  # Spanish
+                    response = (
+                        "<p>¡Hola! 😊 Soy <strong>Eldric</strong>, y estoy muy emocionado de conocerte. Estoy aquí para charlar sobre relaciones y ayudarte a entenderte mejor.</p>"
+                        "<p>¿Sabes cómo todos tenemos diferentes formas de conectarnos con las personas? Bueno, básicamente hay cuatro estilos principales: <strong>seguro, ansioso, evitativo y desorganizado</strong>. ¡Es algo bastante fascinante!</p>"
+                        "<p>Me encantaría conocerte mejor. ¿Qué te parece bien?</p>"
+                        "<ul>"
+                        "<li>a) Tengo curiosidad por mi estilo de relación - ¡hagamos el test!</li>"
+                        "<li>b) Prefiero charlar de lo que tengo en mente ahora mismo.</li>"
+                        "<li>c) Cuéntame más sobre estos estilos de apego primero.</li>"
+                        "</ul>"
+                    )
+            
+            # Update conversation date for returning users
+            if history and len(history) > 0:
+                await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+            
+            print(f"[DEBUG] Set initial greeting response (accurate): {response[:100]}...")
             return {"response": response}
         # Always handle test triggers as a hard reset to test start (but not greeting triggers)
         test_triggers = ["test", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
