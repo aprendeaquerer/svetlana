@@ -1923,6 +1923,24 @@ async def chat_endpoint(msg: Message):
                 response = await translate_text(response, original_language)
             return {"response": response}
         
+        # Handle paywall
+        elif state == "paywall" and message.upper() in ["A", "B"]:
+            print(f"[DEBUG] ENTERED: paywall state with choice {message.upper()}")
+            if message.upper() == "A":
+                # User wants to pay - redirect to payment (for now, just continue to partner test offer)
+                # TODO: Integrate with Stripe or payment processor
+                partner_offer = await generate_partner_test_offer(user_id, msg.language)
+                await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = "¡Perfecto! Ahora tienes acceso a todas las funciones premium. " + partner_offer
+            else:  # B - Skip payment
+                # Move to basic conversation without premium features
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = "Entendido. Puedes continuar con el chat básico. Si cambias de opinión, siempre puedes acceder a las funciones premium más tarde. ¿Sobre qué te gustaría hablar?"
+            
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
+        
         # Handle partner test offer
         elif state == "partner_test_offer" and message.upper() in ["A", "B", "C"]:
             print(f"[DEBUG] ENTERED: partner_test_offer state with choice {message.upper()}")
@@ -1971,10 +1989,10 @@ async def chat_endpoint(msg: Message):
             
             pdf_notification = await generate_pdf_notification(user_id, msg.language)
             
-            # Always offer partner test immediately after main test
-            partner_offer = await generate_partner_test_offer(user_id, msg.language)
-            await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-            response = pdf_notification + affirmation_response + "<br><br>" + partner_offer
+            # Show paywall before offering partner test
+            paywall_message = await generate_paywall_message(user_id, msg.language)
+            await set_state(user_id, "paywall", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            response = pdf_notification + affirmation_response + "<br><br>" + paywall_message
             
             if original_language in ["en", "ru"]:
                 response = await translate_text(response, original_language)
@@ -2339,6 +2357,45 @@ async def generate_personal_questions_prompt(user_id, language="es"):
         prompt += "<p>Esta información me ayuda a adaptar mis consejos a tu situación específica. ¡Comparte lo que te sientas cómodo/a compartiendo!</p>"
     
     return prompt
+
+async def generate_paywall_message(user_id, language="es"):
+    """Generate paywall message to unlock partner test and premium features"""
+    if language == "en":
+        message = (
+            "<p>🎉 <strong>Congratulations on completing your attachment style test!</strong></p>"
+            "<p>You've just unlocked valuable insights about yourself. Now, would you like to take your relationship understanding to the next level?</p>"
+            "<p><strong>💎 Premium Features Available:</strong></p>"
+            "<ul>"
+            "<li>🔍 <strong>Partner Attachment Test</strong> - Understand your partner's style and relationship dynamics</li>"
+            "<li>📊 <strong>Detailed Relationship Analysis</strong> - Get personalized insights for your specific combination</li>"
+            "<li>💝 <strong>Daily Personalized Affirmations</strong> - Tailored to your attachment style</li>"
+            "<li>📧 <strong>PDF Reports</strong> - Downloadable insights you can reference anytime</li>"
+            "<li>💬 <strong>Unlimited Chat</strong> - Get personalized advice whenever you need it</li>"
+            "</ul>"
+            "<p><strong>💰 Special Launch Price: Only $9.99 (Regular $19.99)</strong></p>"
+            "<p><strong>A) Yes, I want to unlock premium features - $9.99</strong></p>"
+            "<p><strong>B) Maybe later, let's continue with basic chat</strong></p>"
+            "<p>What would you like to do?</p>"
+        )
+    else:  # Spanish
+        message = (
+            "<p>🎉 <strong>¡Felicidades por completar tu test de estilo de apego!</strong></p>"
+            "<p>Acabas de desbloquear información valiosa sobre ti mismo/a. ¿Te gustaría llevar tu comprensión de las relaciones al siguiente nivel?</p>"
+            "<p><strong>💎 Funciones Premium Disponibles:</strong></p>"
+            "<ul>"
+            "<li>🔍 <strong>Test de Apego de Pareja</strong> - Entiende el estilo de tu pareja y las dinámicas de relación</li>"
+            "<li>📊 <strong>Análisis Detallado de Relación</strong> - Obtén insights personalizados para tu combinación específica</li>"
+            "<li>💝 <strong>Afirmaciones Diarias Personalizadas</strong> - Adaptadas a tu estilo de apego</li>"
+            "<li>📧 <strong>Reportes PDF</strong> - Insights descargables que puedes consultar cuando quieras</li>"
+            "<li>💬 <strong>Chat Ilimitado</strong> - Recibe consejos personalizados cuando los necesites</li>"
+            "</ul>"
+            "<p><strong>💰 Precio de Lanzamiento Especial: Solo $9.99 (Precio Regular $19.99)</strong></p>"
+            "<p><strong>A) Sí, quiero desbloquear las funciones premium - $9.99</strong></p>"
+            "<p><strong>B) Tal vez después, sigamos con el chat básico</strong></p>"
+            "<p>¿Qué te gustaría hacer?</p>"
+        )
+    
+    return message
 
 async def generate_partner_test_offer(user_id, language="es"):
     """Generate offer for partner test - ask if user has a partner"""
