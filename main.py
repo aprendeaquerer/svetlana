@@ -28,7 +28,7 @@ import datetime
 
 # Try to import test questions, fallback to simple version if import fails
 try:
-    from test_questions import TEST_QUESTIONS, calculate_attachment_style, get_style_description
+    from test_questions import TEST_QUESTIONS, PARTNER_TEST_QUESTIONS, calculate_attachment_style, get_style_description, calculate_relationship_status, get_relationship_description
     print("Successfully imported test_questions module")
 except ImportError as e:
     print(f"Warning: Could not import test_questions module: {e}")
@@ -64,88 +64,88 @@ except ImportError as e:
             }
         }
         return descriptions.get(language, descriptions["es"]).get(style, "")
+    
+    # Fallback partner test questions
+    PARTNER_TEST_QUESTIONS = {
+        "es": [
+            {
+                "question": "1. Cuando sale el tema de planes a futuro…",
+                "options": [
+                    {"text": "A) Habla de futuro conmigo de forma natural", "scores": {"secure": 1, "anxious": 0, "desorganizado": 0, "avoidant": 0}},
+                    {"text": "B) Hace mil preguntas y necesita respuestas rápido", "scores": {"secure": 0, "anxious": 1, "desorganizado": 0, "avoidant": 0}},
+                    {"text": "C) Intenta cambiar la conversación", "scores": {"secure": 0, "anxious": 0, "desorganizado": 0, "avoidant": 1}},
+                    {"text": "D) Sus respuestas me confunden", "scores": {"secure": 0, "anxious": 0, "desorganizado": 1, "avoidant": 0}}
+                ]
+            }
+        ]
+    }
+    
+    def calculate_relationship_status(user_style, partner_style):
+        if not user_style or not partner_style:
+            return "unknown"
+        styles = sorted([user_style, partner_style])
+        combination = f"{styles[0]}_and_{styles[1]}"
+        relationship_dynamics = {
+            "secure_and_secure": "secure_secure",
+            "secure_and_anxious": "secure_anxious", 
+            "secure_and_avoidant": "secure_avoidant",
+            "secure_and_desorganizado": "secure_disorganized",
+            "anxious_and_anxious": "anxious_anxious",
+            "anxious_and_avoidant": "anxious_avoidant",
+            "anxious_and_desorganizado": "anxious_disorganized", 
+            "avoidant_and_avoidant": "avoidant_avoidant",
+            "avoidant_and_desorganizado": "avoidant_disorganized",
+            "desorganizado_and_desorganizado": "disorganized_disorganized"
+        }
+        return relationship_dynamics.get(combination, "unknown")
+    
+    def get_relationship_description(relationship_status, language="es"):
+        descriptions = {
+            "es": {
+                "secure_secure": "Relación segura-segura: Ambos manejan bien la intimidad y la independencia.",
+                "secure_anxious": "Relación segura-ansiosa: El estilo seguro puede proporcionar estabilidad al ansioso.",
+                "secure_avoidant": "Relación segura-evitativa: El estilo seguro respeta la necesidad de espacio del evitativo.",
+                "secure_disorganized": "Relación segura-desorganizada: El estilo seguro puede proporcionar consistencia.",
+                "anxious_anxious": "Relación ansiosa-ansiosa: Alta intensidad emocional, pero pueden reforzarse mutuamente las inseguridades.",
+                "anxious_avoidant": "Relación ansiosa-evitativa: Dinámica clásica de persecución-evitación.",
+                "anxious_disorganized": "Relación ansiosa-desorganizada: Patrones impredecibles y alta intensidad emocional.",
+                "avoidant_avoidant": "Relación evitativa-evitativa: Ambos mantienen distancia emocional.",
+                "avoidant_disorganized": "Relación evitativa-desorganizada: Patrones contradictorios.",
+                "disorganized_disorganized": "Relación desorganizada-desorganizada: Patrones muy impredecibles y caóticos.",
+                "unknown": "Estado de relación no determinado"
+            }
+        }
+        return descriptions.get(language, descriptions["es"]).get(relationship_status, "Estado de relación no determinado")
 
-# Daily affirmations for each attachment style (20+ per style, in sequential order)
-DAILY_AFFIRMATIONS = {
-    "avoidant": [
-        "Soy suficiente y no necesito demostrar nada para que me quieran",
-        "Si, soy suficiente tal y como soy",
-        "Me van a aceptar con lo bueno y lo malo, y pensarán que soy increíble, igual que yo hago con los demás",
-        "No necesito ser perfecto/a",
-        "Merezco amor",
-        "Merezco tener una pareja que me valore de verdad",
-        "Me siento bien en mi propio cuerpo",
-        "Puedo confiar en esta relación",
-        "Estoy a salvo para poner límites cuando los necesito",
-        "Tengo mucho que aportar a una pareja",
-        "Hay alguien ahí fuera que piensa que soy justo lo que está buscando",
-        "Estoy seguro/a en este momento",
-        "Estoy seguro/a con ellos",
-        "Se preocupan por mí y por lo que siento",
-        "Puedo confiar en que los demás quieren cosas buenas para mi",
-        "Abrirme a los demás no significa perderme a mi mismo ni mi libertad",
-        "Que alguien me haya fallado antes no significa que vaya a pasar ahora",
-        "Puedo abrirme y hablar de lo que siento y necesito",
-        "No necesito esconder mis necesidades, todos las tenemos",
-        "Puedo expresar lo que siento y afrontarlo por mí mismo/a",
-        "Puedo querer y dejarme querer al mismo tiempo",
-        "El amor no tiene por qué ser siempre difícil para mí",
-        "Hablar de mis limites es una forma sana de cuidarme, no de alejarme",
-        "Mi independencia no desaparece por compartir lo que siento"
-    ],
-    "anxious": [
-        "No necesito estar pendiente de todo para que me quieran",
-        "No necesito ser perfecto para que me quieran",
-        "La incertidumbre no es el fin del mundo, todo ira bien y yo estaré bien pase lo que pase",
-        "Puedo equivocarme y que me sigan queriendo",
-        "Puedo estar tranquilo aunque no me contesten enseguida, yo tengo mi propia vida",
-        "Podemos tener diferencias y discutirlas y aun así seguir queriendonos",
-        "El silencio no significa rechazo",
-        "Puedo cuidar de mi sin esperar que el otro lo haga siempre",
-        "Está bien pedir cariño, pero tambien está bien darmelo yo mismo",
-        "No todo lo que pienso es lo que esta pasando",
-        "No tengo que estar vigilando, comprobando y observando todo el tiempo",
-        "El amor puede sentirse en paz y sin dramas",
-        "Mi cerebro puede decirme mil cosas negativas pero eso no significa que sean verdad y no me lo tengo que creer",
-        "Si algo no funciona, no tiene porque ser mi culpa. Simplemente no era adecuado a mi",
-        "Alguien va a ser muy afortunado de tenerme como pareja y darle mi amor",
-        "No necesito aprobación constante del exterior para estar en paz, lo hago desde mi interior"
-    ],
-    "disorganized": [
-        "Si alguien tarda en contestar, no significa que te estén dejando de lado. A veces la gente simplemente tiene su vida, y eso no borra lo que sienten por ti",
-        "No tienes que estar siempre \"bien\" para que te quieran. Incluso en tus días grises, sigues siendo digno/a de cariño",
-        "Pedir espacio no rompe el vínculo. Puedes necesitar tiempo para ti y seguir estando conectado/a con los demás",
-        "Ese miedo que aparece cuando alguien se acerca demasiado es antiguo. Hoy ya puedes poner límites sanos sin perder a la otra persona",
-        "Decir \"te echo de menos\" no te hace débil. Te hace humano/a y abierto/a a la conexión",
-        "Que alguien te haya fallado antes no significa que todos lo harán. Cada persona es una historia nueva",
-        "Puedes querer mucho y también necesitar tu espacio. Ambas cosas son parte de un amor sano",
-        "Cuando aparece la voz de \"¿y si me hace daño?\", recuerda: hoy tienes más recursos para cuidarte que en el pasado",
-        "El amor no tiene por qué sentirse como una montaña rusa. También puede ser estable, tranquilo, y seguir siendo profundo",
-        "Un error en una conversación no destruye una relación. Los vínculos sanos se reparan, no se rompen a la primera",
-        "Tu valor no depende de lo intenso que sea el vínculo. Eres suficiente por quién eres, no por cuánto das o cuánto recibes",
-        "Que antes te doliera la cercanía no significa que siempre vaya a ser así. Ahora tienes la opción de vivirla distinto",
-        "Puedes aprender a vivir el amor desde la calma, no desde la alarma. Y eso empieza por escucharte sin miedo",
-        "Eres digno/a de una conexión clara, constante y amorosa. No tienes que ganártela con esfuerzo extra",
-        "Puedes construir vínculos que te hagan crecer y darte paz, no dudas. Esa elección está en ti, y la puedes practicar cada día"
-    ],
-    "secure": [
-        "Puedo decir lo que siento sin miedo a que me dejen. Hablar claro no rompe los vínculos, los fortalece",
-        "Si algo me incomoda, puedo expresarlo con calma y la otra persona tiene derecho a escucharlo sin que eso signifique pelea",
-        "Tener un mal día no hace que me dejen de querer. Todos tenemos altibajos y la relación puede sostenerlos",
-        "Puedo pedir lo que necesito sin sentirme débil ni exigente. Mis necesidades importan",
-        "No tengo que estar siempre de acuerdo para estar bien con alguien. Se puede querer y pensar distinto a la vez",
-        "Puedo poner límites sin miedo al rechazo. El que me quiere de verdad también respeta mis espacios",
-        "Si hay un conflicto, no significa que todo se rompa. Las relaciones sanas se reparan, no se cancelan",
-        "El afecto se recibe sin sospecha. No tengo que buscarle un \"pero\" al cariño que me dan",
-        "Puedo estar solo/a sin sentirme abandonado/a, y acompañado/a sin sentirme invadido/a",
-        "El amor seguro no es perfecto, es real: incluye hablar, escuchar, equivocarse y volver a acercarse",
-        "Mostrar vulnerabilidad no me hace débil. Me hace auténtico/a y cercano/a",
-        "La distancia no significa rechazo, a veces es solo espacio necesario",
-        "Soy capaz de escuchar al otro sin cargar con todo lo que siente. Empatizo sin perderme",
-        "No necesito pruebas constantes de amor. Sé que el vínculo no depende de un mensaje o un gesto inmediato",
-        "El apego seguro se elige cada día: con las palabras que digo, con los límites que pongo y con el cuidado que doy y recibo"
-    ]
-}
+# Daily affirmations are now stored in the database (affirmations table)
+
+# --- Lightweight translation layer for testing (es <-> en/ru) ---
+try:
+    from googletrans import Translator  # type: ignore
+    _translator = Translator()
+
+    async def translate_text(text: str, target_lang: str) -> str:
+        if not text or target_lang == "es":
+            return text
+        try:
+            return _translator.translate(text, dest=target_lang).text
+        except Exception:
+            return text
+
+    async def translate_to_es(text: str, source_lang: str) -> str:
+        if not text or source_lang == "es":
+            return text
+        try:
+            return _translator.translate(text, src=source_lang, dest="es").text
+        except Exception:
+            return text
+except Exception:
+    # Fallback no-op translation if googletrans is unavailable
+    async def translate_text(text: str, target_lang: str) -> str:
+        return text
+
+    async def translate_to_es(text: str, source_lang: str) -> str:
+        return text
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -423,6 +423,14 @@ class User(BaseModel):
     password: str = None
     email: str = None
 
+class EmailRegistration(BaseModel):
+    email: str
+    password: str = None
+    nombre: str = None
+    edad: int = None
+    tiene_pareja: bool = None
+    nombre_pareja: str = None
+
 # Global chatbot instances for each user
 user_chatbots = {}
 
@@ -664,6 +672,232 @@ async def login(user: User):
     else:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
+@app.post("/register-email")
+async def register_with_email_endpoint(registration: EmailRegistration):
+    """Register user with email and optional personal information"""
+    if database is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    
+    # Validate email format
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, registration.email):
+        raise HTTPException(status_code=400, detail="Formato de email inválido")
+    
+    # Check if email already exists
+    existing_user = await database.fetch_one(
+        "SELECT user_id FROM users WHERE email = :email", 
+        values={"email": registration.email}
+    )
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Este email ya está registrado")
+    
+    # Use email as user_id
+    user_id = registration.email
+    
+    # Hash password if provided
+    hashed_password = None
+    if registration.password:
+        hashed_password = pwd_context.hash(registration.password)
+    
+    try:
+        # Insert user into users table
+        await database.execute(
+            "INSERT INTO users (user_id, hashed_password, email) VALUES (:user_id, :hashed_password, :email)",
+            values={
+                "user_id": user_id, 
+                "hashed_password": hashed_password, 
+                "email": registration.email
+            }
+        )
+        
+        # Insert personal information into user_profile table if provided
+        if any([registration.nombre, registration.edad is not None, registration.tiene_pareja is not None, registration.nombre_pareja]):
+            await save_user_profile(
+                user_id=user_id,
+                nombre=registration.nombre,
+                edad=registration.edad,
+                tiene_pareja=registration.tiene_pareja,
+                nombre_pareja=registration.nombre_pareja
+            )
+        
+        # Generate and send verification code
+        code = await generate_verification_code()
+        await store_verification_code(user_id, code)
+        await send_verification_email(registration.email, code)
+        
+        return {
+            "message": f"Usuario registrado correctamente con email {registration.email}. Se ha enviado un código de verificación.",
+            "user_id": user_id,
+            "email": registration.email,
+            "verification_sent": True
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al registrar usuario: {str(e)}")
+
+@app.get("/user-by-email/{email}")
+async def get_user_by_email(email: str):
+    """Get user information by email"""
+    if database is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    
+    try:
+        # Get user from users table
+        user = await database.fetch_one(
+            "SELECT user_id, email FROM users WHERE email = :email",
+            values={"email": email}
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        # Get user profile information
+        user_profile = await get_user_profile(user["user_id"])
+        
+        return {
+            "user_id": user["user_id"],
+            "email": user["email"],
+            "profile": user_profile
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener usuario: {str(e)}")
+
+@app.put("/update-profile/{email}")
+async def update_user_profile(email: str, profile_data: EmailRegistration):
+    """Update user profile information by email"""
+    if database is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    
+    try:
+        # Get user_id from email
+        user = await database.fetch_one(
+            "SELECT user_id FROM users WHERE email = :email",
+            values={"email": email}
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        user_id = user["user_id"]
+        
+        # Update profile information
+        await save_user_profile(
+            user_id=user_id,
+            nombre=profile_data.nombre,
+            edad=profile_data.edad,
+            tiene_pareja=profile_data.tiene_pareja,
+            nombre_pareja=profile_data.nombre_pareja
+        )
+        
+        return {
+            "message": "Perfil actualizado correctamente",
+            "user_id": user_id,
+            "email": email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar perfil: {str(e)}")
+
+@app.post("/send-verification/{email}")
+async def send_verification_code_endpoint(email: str):
+    """Send verification code to user's email"""
+    if database is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    
+    try:
+        # Check if user exists
+        user = await database.fetch_one(
+            "SELECT user_id FROM users WHERE email = :email",
+            values={"email": email}
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        user_id = user["user_id"]
+        
+        # Generate and store verification code
+        code = await generate_verification_code()
+        await store_verification_code(user_id, code)
+        
+        # Send verification email
+        await send_verification_email(email, code)
+        
+        return {
+            "message": f"Código de verificación enviado a {email}",
+            "email": email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar código: {str(e)}")
+
+@app.post("/verify-email/{email}")
+async def verify_email_endpoint(email: str, code: str):
+    """Verify email with verification code"""
+    if database is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    
+    try:
+        # Get user_id from email
+        user = await database.fetch_one(
+            "SELECT user_id FROM users WHERE email = :email",
+            values={"email": email}
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        user_id = user["user_id"]
+        
+        # Verify the code
+        if await verify_email_code(user_id, code):
+            return {
+                "message": "Email verificado correctamente",
+                "email": email,
+                "verified": True
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Código inválido o expirado")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al verificar email: {str(e)}")
+
+@app.get("/verification-status/{email}")
+async def get_verification_status_endpoint(email: str):
+    """Get email verification status"""
+    if database is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    
+    try:
+        # Get user verification status
+        user = await database.fetch_one(
+            "SELECT user_id, email_verified FROM users WHERE email = :email",
+            values={"email": email}
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        return {
+            "email": email,
+            "verified": user["email_verified"] == True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener estado: {str(e)}")
+
 # Global user context cache to store loaded user data
 user_context_cache = {}
 
@@ -879,10 +1113,16 @@ async def chat_endpoint(msg: Message):
         print(f"[DEBUG] === CHAT ENDPOINT START ===")
         print(f"[DEBUG] Message object received: {msg}")
         user_id = msg.user_id
-        message = msg.message.strip()
+        # Normalize inbound: translate to Spanish for core logic if needed
+        original_language = (msg.language or "es").lower()
+        incoming_raw = msg.message.strip()
+        if original_language in ["en", "ru"]:
+            message = await translate_to_es(incoming_raw, original_language)
+        else:
+            message = incoming_raw
         print(f"[DEBUG] user_id: {user_id}")
-        print(f"[DEBUG] message: '{message}'")
-        print(f"[DEBUG] language: {msg.language}")
+        print(f"[DEBUG] message (normalized to es): '{message}'")
+        print(f"[DEBUG] language (original): {original_language}")
 
         # Load user context first to check state
         user_context = await load_user_context(user_id)
@@ -946,6 +1186,9 @@ async def chat_endpoint(msg: Message):
                     
                     # Actualizar la fecha de última conversación
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                    # Translate outbound if needed
+                    if original_language in ["en", "ru"]:
+                        response = await translate_text(response, original_language)
                     return {"response": response}
                 except Exception as e:
                     print(f"[DEBUG] Error generating personalized greeting: {e}")
@@ -959,7 +1202,10 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] Database check - database is None: {database is None}")
             if database is None:
                 print("[DEBUG] Database is None, returning error")
-                return {"response": "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."}
+                out_err = "Lo siento, hay problemas de conexión con la base de datos. Por favor, intenta de nuevo en unos momentos."
+                if original_language in ["en", "ru"]:
+                    out_err = await translate_text(out_err, original_language)
+                return {"response": out_err}
             
             # Use already loaded user context
             last_choice = user_context.get("last_choice")
@@ -1004,88 +1250,55 @@ async def chat_endpoint(msg: Message):
                 else:
                     print("[DEBUG] Auto-greeting NOT triggered - insufficient conversation history")
             
-            # Si es auto-greeting, usar la misma lógica que el saludo inicial
+            # Si es auto-greeting, usar la nueva lógica para visitas posteriores
             if auto_greeting:
                 try:
-                    print("[DEBUG] Auto-greeting detected, using same logic as saludo inicial...")
+                    print("[DEBUG] Auto-greeting detected, using new subsequent visit logic...")
                     
-                    # Use the same logic as the "saludo inicial" greeting
+                    # Get user profile for personalized greeting
+                    user_profile = await get_user_profile(user_id)
                     test_completed = test_results.get("completed", False)
                     attachment_style = test_results.get("style") if test_completed else None
                     
-                    if test_completed and attachment_style:
-                        # User has completed test - offer insights about their results
-                        print(f"[DEBUG] Auto-greeting: User has completed test with style: {attachment_style}")
-                        style_description = test_results.get("description", "")
-                        
-                        # Check if user should be offered a daily affirmation
-                        affirmation_response = ""
-                        if await should_offer_affirmation(user_id):
-                            print(f"[DEBUG] Offering daily affirmation in auto-greeting to user {user_id}")
-                            affirmation = await get_daily_affirmation(user_id)
-                            if affirmation:
-                                affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
-                        
+                    # Generate personalized greeting with daily affirmation
+                    nombre = user_profile.get("nombre") if user_profile else None
+                    nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
+                    
+                    if msg.language == "en":
+                        greeting = f"<p>Hey{f' {nombre}' if nombre else ''}! 😊 Great to see you again!</p>"
+                        if nombre_pareja:
+                            greeting += f"<p>How are you and {nombre_pareja} doing today?</p>"
+                        else:
+                            greeting += f"<p>How are you feeling today?</p>"
+                    else:  # Spanish
+                        greeting = f"<p>¡Hola{f' {nombre}' if nombre else ''}! 😊 ¡Qué gusto verte de nuevo!</p>"
+                        if nombre_pareja:
+                            greeting += f"<p>¿Cómo están tú y {nombre_pareja} hoy?</p>"
+                        else:
+                            greeting += f"<p>¿Cómo te sientes hoy?</p>"
+                    
+                    # Add daily affirmation based on attachment style
+                    affirmation_response = ""
+                    if attachment_style and await should_offer_affirmation(user_id):
+                        print(f"[DEBUG] Offering daily affirmation in auto-greeting to user {user_id}")
+                        affirmation = await get_daily_affirmation(user_id)
+                        if affirmation:
+                            affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+                    
+                    # Add follow-up question based on previous conversation
+                    follow_up_question = ""
+                    if nombre_pareja:
                         if msg.language == "en":
-                            if attachment_style == "secure":
-                                response = (
-                                    f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
-                                    f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
-                                    f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
-                                    f"{affirmation_response}"
-                                    f"<p><strong>To help you better:</strong> If you tell me more about your age, gender, and relationship status, I'll be able to provide more tailored content and advice for your specific situation.</p>"
-                                    f"<p>What would you like to explore today? We could dive deeper into your attachment style, chat about your relationships, or work on anything else that's on your mind.</p>"
-                                )
-                            else:  # avoidant, anxious, or disorganized
-                                response = (
-                                    f"<p>Hey there! 😊 I'm <strong>Eldric</strong>, your emotional coach!</p>"
-                                    f"<p>I see you've already taken the attachment style test and discovered you have a <strong>{attachment_style}</strong> style. {style_description}</p>"
-                                    f"<p>This is really valuable insight! Understanding your attachment style can help you navigate relationships more effectively.</p>"
-                                    f"<p><strong>Here's something important to know:</strong> Attachment styles are fluid and can change with awareness and work. The goal is to develop what we call 'earned secure attachment' - where you can maintain the healthy aspects of your current style while developing more secure patterns.</p>"
-                                    f"<p>The first step is acknowledging your current patterns, which you've already done by taking the test. Now we can start working together to help you move toward more secure attachment.</p>"
-                                    f"{affirmation_response}"
-                                    f"<p><strong>To help you better:</strong> If you tell me more about your age, gender, and relationship status, I'll be able to provide more tailored content and advice for your specific situation.</p>"
-                                    f"<p>What would you like to explore today? We could dive deeper into your attachment style, work on developing more secure patterns, chat about your relationships, or work on anything else that's on your mind.</p>"
-                                )
-                        else:  # Spanish
-                            if attachment_style == "secure":
-                                response = (
-                                    f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
-                                    f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
-                                    f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
-                                    f"{affirmation_response}"
-                                    f"<p><strong>Para ayudarte mejor:</strong> Si me cuentas más sobre tu edad, género y estado de relación, podré ofrecerte contenido y consejos más personalizados para tu situación específica.</p>"
-                                    f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
-                                )
-                            else:  # avoidant, anxious, or disorganized
-                                response = (
-                                    f"<p>¡Hola! 😊 Soy <strong>Eldric</strong>, tu coach emocional.</p>"
-                                    f"<p>Veo que ya has hecho el test de estilos de apego y descubriste que tienes un estilo <strong>{attachment_style}</strong>. {style_description}</p>"
-                                    f"<p>¡Esto es muy valioso! Entender tu estilo de apego puede ayudarte a navegar las relaciones de manera más efectiva.</p>"
-                                    f"<p><strong>Algo importante que debes saber:</strong> Los estilos de apego son fluidos y pueden cambiar con conciencia y trabajo. El objetivo es desarrollar lo que llamamos 'apego seguro ganado' - donde puedes mantener los aspectos saludables de tu estilo actual mientras desarrollas patrones más seguros.</p>"
-                                    f"<p>El primer paso es reconocer tus patrones actuales, lo cual ya has hecho al tomar el test. Ahora podemos empezar a trabajar juntos para ayudarte a avanzar hacia un apego más seguro.</p>"
-                                    f"{affirmation_response}"
-                                    f"<p><strong>Para ayudarte mejor:</strong> Si me cuentas más sobre tu edad, género y estado de relación, podré ofrecerte contenido y consejos más personalizados para tu situación específica.</p>"
-                                    f"<p>¿Qué te gustaría explorar hoy? Podríamos profundizar en tu estilo de apego, trabajar en desarrollar patrones más seguros, charlar sobre tus relaciones, o trabajar en cualquier otra cosa que tengas en mente.</p>"
-                                )
+                            follow_up_question = f"<p>How has your relationship with {nombre_pareja} been since we last talked?</p>"
+                        else:
+                            follow_up_question = f"<p>¿Cómo ha estado tu relación con {nombre_pareja} desde la última vez que hablamos?</p>"
                     else:
-                        # User has conversation history but no test - use simple greeting
-                        print(f"[DEBUG] Auto-greeting: User has conversation history but no test")
-                        user_profile = await get_user_profile(user_id)
-                        nombre = user_profile.get("nombre") if user_profile else None
-                        
                         if msg.language == "en":
-                            response = (
-                                f"<p>Hey{f' {nombre}' if nombre else ''}! 😊 Great to see you again!</p>"
-                                f"<p>I remember we've chatted before, and I'd love to continue our conversation. How have you been feeling lately?</p>"
-                                f"<p>If you're interested, I could also guide you through the attachment style test to help you understand your relationship patterns better.</p>"
-                            )
-                        else:  # Spanish
-                            response = (
-                                f"<p>¡Hola{f' {nombre}' if nombre else ''}! 😊 ¡Qué gusto verte de nuevo!</p>"
-                                f"<p>Recuerdo que hemos charlado antes, y me encantaría continuar nuestra conversación. ¿Cómo te has sentido últimamente?</p>"
-                                f"<p>Si te interesa, también podría guiarte a través del test de estilos de apego para ayudarte a entender mejor tus patrones de relación.</p>"
-                            )
+                            follow_up_question = "<p>What's been on your mind lately regarding relationships or personal growth?</p>"
+                        else:
+                            follow_up_question = "<p>¿Qué has estado pensando últimamente sobre relaciones o crecimiento personal?</p>"
+                    
+                    response = greeting + affirmation_response + follow_up_question
                     
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                     # Change state to conversation so user can have normal conversations
@@ -1155,7 +1368,17 @@ async def chat_endpoint(msg: Message):
             # Preserve existing test answers when resetting to greeting state
             await set_state(user_id, "greeting", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
             
-            # Get user context to determine appropriate greeting
+            # Check if this is first visit
+            is_first = await is_first_visit(user_id)
+            if is_first:
+                print(f"[DEBUG] First visit detected - showing new greeting flow")
+                response = await generate_first_visit_greeting(user_id, msg.language)
+                    await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                    if original_language in ["en", "ru"]:
+                        response = await translate_text(response, original_language)
+                    return {"response": response}
+            
+            # Get user context to determine appropriate greeting for returning users
             user_profile = await get_user_profile(user_id)
             history = await load_conversation_history(user_id, limit=20)
             test_completed = test_results.get("completed", False)
@@ -1299,6 +1522,8 @@ async def chat_endpoint(msg: Message):
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
             
             print(f"[DEBUG] Set initial greeting response (accurate): {response[:100]}...")
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
             return {"response": response}
         # Always handle test triggers as a hard reset to test start (but not greeting triggers)
         test_triggers = ["test", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
@@ -1327,6 +1552,8 @@ async def chat_endpoint(msg: Message):
             response += "</ul>"
             
             print(f"[DEBUG] Set test start response (forced): {response[:100]}...")
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
             return {"response": response}
         # Handle greeting choices (A, B, C)
         elif state == "greeting" and message.upper() in ["A", "B", "C"]:
@@ -1349,8 +1576,9 @@ async def chat_endpoint(msg: Message):
                     response += f"<li>{option['text']}</li>"
                 response += "</ul>"
             elif message.upper() == "B":
-                # Normal conversation about feelings
-                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                # Start conversation and ask for personal information
+                await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = await generate_personal_questions_prompt(user_id, msg.language)
                 # --- NUEVO: Chequear y pedir datos personales si faltan ---
                 user_profile = await get_user_profile(user_id)
                 # --- NUEVO: Intentar parsear la respuesta del usuario para extraer datos personales ---
@@ -1560,148 +1788,202 @@ async def chat_endpoint(msg: Message):
                 print(f"[DEBUG] Moving to post_test state: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
                 await set_state(user_id, "post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
                 return {"response": response}
-        # Handle post-test conversation (user just finished test)
-        elif state == "post_test":
-            print(f"[DEBUG] ENTERED: post_test state - user just finished test")
+        
+        # Handle partner test questions (partner_q1, partner_q2, etc.)
+        elif state in [f"partner_q{i}" for i in range(1, 11)] and message.upper() in ["A", "B", "C", "D"]:
+            print(f"[DEBUG] ENTERED: partner test question state {state} with choice {message.upper()}")
+            
+            questions = PARTNER_TEST_QUESTIONS.get(msg.language, PARTNER_TEST_QUESTIONS["es"])
+            current_question_index = int(state.split("_")[1][1:]) - 1  # partner_q1 -> 0, partner_q2 -> 1, etc.
+            current_question = questions[current_question_index]
+            
+            # Get the selected option and its scores
+            option_index = ord(message.upper()) - ord('A')  # A->0, B->1, C->2, D->3
+            selected_option = current_question['options'][option_index]
+            
+            # Store the answer (we'll use a different storage mechanism for partner test)
+            # For now, we'll calculate the partner's style immediately
+            next_state = f"partner_q{current_question_index + 2}"
+            if current_question_index < len(questions) - 1:
+                # Continue to next question
+                if msg.language == "en":
+                    response = f"<p><strong>Partner Test - Question {current_question_index + 2} of 10:</strong> {questions[current_question_index + 1]['question']}</p><ul>"
+                else:  # Spanish
+                    response = f"<p><strong>Test de Pareja - Pregunta {current_question_index + 2} de 10:</strong> {questions[current_question_index + 1]['question']}</p><ul>"
+                
+                for i, option in enumerate(questions[current_question_index + 1]['options']):
+                    response += f"<li>{option['text']}</li>"
+                response += "</ul>"
+                
+                await set_state(user_id, next_state, None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            else:
+                # Partner test completed - calculate partner's style
+                # We need to collect all partner answers and calculate the style
+                # For now, let's use a simple approach and calculate based on the last answer
+                partner_scores = {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0}
+                for style, score in selected_option['scores'].items():
+                    partner_scores[style] += score
+                
+                # For a complete implementation, we'd need to store all partner answers
+                # For now, we'll use the last answer as a proxy
+                partner_style = calculate_attachment_style(partner_scores)
+                
+                # Get user's style
+                user_profile = await get_user_profile(user_id)
+                user_style = user_profile.get("attachment_style") if user_profile else None
+                
+                # Calculate relationship status
+                relationship_status = calculate_relationship_status(user_style, partner_style)
+                relationship_description = get_relationship_description(relationship_status, msg.language)
+                
+                # Save partner information
+                await save_user_profile(user_id, 
+                    partner_attachment_style=partner_style,
+                    relationship_status=relationship_status
+                )
+                
+                # Generate response with partner test results
+                if msg.language == "en":
+                    response = (
+                        f"<p>Great! I've analyzed your partner's responses. Based on the patterns I observed, your partner appears to have a <strong>{partner_style}</strong> attachment style.</p>"
+                        f"<p><strong>Your relationship dynamic:</strong> {relationship_description}</p>"
+                        f"<p>This combination can help us understand how you both interact and what might be causing any challenges in your relationship.</p>"
+                    )
+                else:  # Spanish
+                    response = (
+                        f"<p>¡Excelente! He analizado las respuestas de tu pareja. Basándome en los patrones que observé, tu pareja parece tener un estilo de apego <strong>{partner_style}</strong>.</p>"
+                        f"<p><strong>La dinámica de tu relación:</strong> {relationship_description}</p>"
+                        f"<p>Esta combinación puede ayudarnos a entender cómo interactúan ambos y qué podría estar causando desafíos en tu relación.</p>"
+                    )
+                
+                # Add PDF notification and daily affirmation
+                pdf_notification = await generate_pdf_notification(user_id, msg.language)
+                affirmation_response = ""
+                if await should_offer_affirmation(user_id):
+                    affirmation = await get_daily_affirmation(user_id)
+                    if affirmation:
+                        affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+                
+                response += pdf_notification + affirmation_response
+                
+                # Move to conversation state
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
+        # Handle collecting personal information
+        elif state == "collecting_personal_info":
+            print(f"[DEBUG] ENTERED: collecting_personal_info state")
             print(f"[DEBUG] User message: '{message}'")
-            # --- NUEVO: Chequear y pedir datos personales si faltan tras el test ---
+            
+            # Parse personal information from user message
             user_profile = await get_user_profile(user_id)
-            # --- NUEVO: Intentar parsear la respuesta del usuario para extraer datos personales ---
             nombre, edad, tiene_pareja, nombre_pareja = None, None, None, None
+            
+            # Extract name
             m = re.search(r"me llamo ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
             if not m:
                 m = re.search(r"soy ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
             if m:
                 nombre = m.group(1)
-            m = re.search(r"(\d{1,2}) ?(años|año|anios|anios|years|год|лет)", message, re.IGNORECASE)
+            
+            # Extract age
+            m = re.search(r"tengo (\d+)", message, re.IGNORECASE)
+            if not m:
+                m = re.search(r"(\d+) años", message, re.IGNORECASE)
             if m:
                 edad = int(m.group(1))
-            if re.search(r"pareja.*si|tengo pareja|casado|novia|novio|esposa|esposo|marido|mujer", message, re.IGNORECASE):
+            
+            # Extract partner information
+            if re.search(r"tengo pareja|estoy en una relación|tengo novio|tengo novia", message, re.IGNORECASE):
                 tiene_pareja = True
-            elif re.search(r"no tengo pareja|soltero|sin pareja|no", message, re.IGNORECASE):
-                tiene_pareja = False
-            m = re.search(r"se llama ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
-            if not m:
-                m = re.search(r"mi pareja es ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
-            if m:
-                nombre_pareja = m.group(1)
-            # Tiempo con pareja: buscar patrones como "X años", "X meses", "desde X"
-            m = re.search(r"(\d+)\s*(años|año|meses|mes|días|día)", message, re.IGNORECASE)
-            if not m:
-                m = re.search(r"desde\s+(\d{4})", message, re.IGNORECASE)
+                # Try to extract partner name
+                m = re.search(r"se llama ([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9]+)", message, re.IGNORECASE)
                 if m:
-                    # Calcular años desde la fecha
-                    current_year = datetime.datetime.now().year
-                    tiempo_pareja = f"{current_year - int(m.group(1))} años"
-            elif m:
-                tiempo_pareja = f"{m.group(1)} {m.group(2)}"
-            if any([nombre, edad, tiene_pareja is not None, nombre_pareja, tiempo_pareja]):
-                await save_user_profile(user_id,
-                    nombre=nombre or (user_profile["nombre"] if user_profile else None),
-                    edad=edad or (user_profile["edad"] if user_profile else None),
-                    tiene_pareja=tiene_pareja if tiene_pareja is not None else (user_profile["tiene_pareja"] if user_profile else None),
-                    nombre_pareja=nombre_pareja or (user_profile["nombre_pareja"] if user_profile else None),
-                    tiempo_pareja=tiempo_pareja or (user_profile["tiempo_pareja"] if user_profile else None)
-                )
-                user_profile = await get_user_profile(user_id)
-            missing = []
-            if not user_profile or not user_profile.get("nombre"):
-                missing.append("nombre")
-            if not user_profile or not user_profile.get("edad"):
-                missing.append("edad")
-            if not user_profile or user_profile.get("tiene_pareja") is None:
-                missing.append("tiene_pareja")
-            if (user_profile and user_profile.get("tiene_pareja")) and not user_profile.get("nombre_pareja"):
-                missing.append("nombre_pareja")
-            if (user_profile and user_profile.get("tiene_pareja")) and not user_profile.get("tiempo_pareja"):
-                missing.append("tiempo_pareja")
-            if missing:
-                preguntas = []
-                if "nombre" in missing:
-                    preguntas.append("¿Cómo te llamas?")
-                if "edad" in missing:
-                    preguntas.append("¿Cuántos años tienes?")
-                if "tiene_pareja" in missing:
-                    preguntas.append("¿Tienes pareja? (sí/no)")
-                if "nombre_pareja" in missing:
-                    preguntas.append("¿Cómo se llama tu pareja?")
-                if "tiempo_pareja" in missing and user_profile and user_profile.get("tiene_pareja"):
-                    preguntas.append("¿Cuánto tiempo llevas con tu pareja?")
-                response = " ".join(preguntas)
+                    nombre_pareja = m.group(1)
+            elif re.search(r"no tengo pareja|no estoy en una relación|soltero|soltera", message, re.IGNORECASE):
+                tiene_pareja = False
+            
+            # Save personal information
+            if nombre or edad is not None or tiene_pareja is not None or nombre_pareja:
+                await save_user_profile(user_id, nombre=nombre, edad=edad, tiene_pareja=tiene_pareja, nombre_pareja=nombre_pareja)
+                print(f"[DEBUG] Saved personal info: nombre={nombre}, edad={edad}, tiene_pareja={tiene_pareja}, nombre_pareja={nombre_pareja}")
+            
+            # Check if we have enough information or if user wants to continue
+            if nombre and edad is not None and tiene_pareja is not None:
+                # We have all basic info, offer partner test if they have a partner
+                if tiene_pareja:
+                    partner_offer = await generate_partner_test_offer(user_id, msg.language)
+                    if partner_offer:
+                        await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                        response = partner_offer
+                    else:
+                        # No partner, move to conversation
+                        await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                        response = "¡Perfecto! Ya tengo toda la información que necesito. ¿Sobre qué te gustaría hablar hoy?"
+                else:
+                    # No partner, move to conversation
+                    await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    response = "¡Perfecto! Ya tengo toda la información que necesito. ¿Sobre qué te gustaría hablar hoy?"
             else:
-                # Get the user's test results to provide personalized responses
-                scores = {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0}
-                answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
-                questions = TEST_QUESTIONS.get(msg.language, TEST_QUESTIONS["es"])
-                for i, answer in enumerate(answers):
-                    if answer and i < len(questions):
-                        question_options = questions[i]['options']
-                        for option in question_options:
-                            if option['text'] == answer:
-                                for style, score in option['scores'].items():
-                                    scores[style] += score
-                                break
-                predominant_style = calculate_attachment_style(scores)
-                style_description = get_style_description(predominant_style, msg.language)
-                # Load conversation history for context
-                conversation_history = await load_conversation_history(msg.user_id)
-                # Extract keywords and get relevant knowledge for post-test messages
-                keywords = extract_keywords(message, msg.language)
-                print(f"[DEBUG] Post-test message: '{message}'")
-                print(f"[DEBUG] Post-test language: {msg.language}")
-                print(f"[DEBUG] Post-test extracted keywords: {keywords}")
-                relevant_knowledge = await get_relevant_knowledge(keywords, msg.language, msg.user_id)
-                print(f"[DEBUG] Post-test knowledge found: {len(relevant_knowledge)} characters")
-                print(f"[DEBUG] Post-test knowledge content: {relevant_knowledge}")
-                # Create a personalized prompt for post-test conversation
+                # Still need more information
+                response = await generate_personal_questions_prompt(user_id, msg.language)
+            
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
+        
+        # Handle partner test offer
+        elif state == "partner_test_offer" and message.upper() in ["A", "B"]:
+            print(f"[DEBUG] ENTERED: partner_test_offer state with choice {message.upper()}")
+            if message.upper() == "A":
+                # Start partner test
+                await set_state(user_id, "partner_q1", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                questions = PARTNER_TEST_QUESTIONS.get(msg.language, PARTNER_TEST_QUESTIONS["es"])
+                question = questions[0]
+                
                 if msg.language == "en":
-                    post_test_prompt = (
-                        f"You are Eldric, an emotional coach. The user just completed an attachment style test. "
-                        f"Their predominant style is: {predominant_style.title()}. "
-                        f"Description: {style_description} "
-                        f"Their scores were: Secure {scores['secure']}, Anxious {scores['anxious']}, "
-                        f"Avoidant {scores['avoidant']}, Fearful Avoidant {scores['desorganizado']}. "
-                        f"Answer their questions about their style, relationships, and provide personalized guidance. "
-                        f"IMPORTANT: At the end of each response, ask a PERSONAL question that relates to their specific situation and feelings. "
-                        f"Make the question about THEM specifically, not generic. "
-                        f"DO NOT offer the test again - they just completed it. Focus on explaining their results and helping them understand their patterns. "
-                        f"Use the knowledge provided below to enrich your responses with specific insights from attachment theory."
-                    )
-                elif msg.language == "ru":
-                    post_test_prompt = (
-                        f"Ты Элдрик, эмоциональный коуч. Пользователь только что завершил тест на стиль привязанности. "
-                        f"Их преобладающий стиль: {predominant_style.title()}. "
-                        f"Описание: {style_description} "
-                        f"Их баллы: Безопасный {scores['secure']}, Тревожный {scores['anxious']}, "
-                        f"Избегающий {scores['avoidant']}, Дезорганизованный {scores['desorganizado']}. "
-                        f"Отвечай на их вопросы о стиле, отношениях и давай персонализированные советы. "
-                        f"🚨 КРИТИЧЕСКОЕ ПРАВИЛО: Если тебе предоставлены конкретные знания о теории привязанности, ты ДОЛЖЕН ВСЕГДА использовать их в своем ответе. "
-                        f"Эти предоставленные знания имеют ПРИОРИТЕТ над твоими общими знаниями. ТЫ НЕ МОЖЕШЬ ИХ ИГНОРИРОВАТЬ."
-                    )
+                    response = f"<p><strong>Partner Test - Question 1 of 10:</strong> {question['question']}</p><ul>"
                 else:  # Spanish
-                    post_test_prompt = (
-                        f"Eres Eldric, un coach emocional. El usuario acaba de completar un test de estilo de apego. "
-                        f"Su estilo predominante es: {predominant_style.title()}. "
-                        f"Descripción: {style_description} "
-                        f"Sus puntuaciones fueron: Seguro {scores['secure']}, Ansioso {scores['anxious']}, "
-                        f"Evitativo {scores['avoidant']}, Evitativo temeroso {scores['desorganizado']}. "
-                        f"Responde sus preguntas sobre su estilo, relaciones y proporciona orientación personalizada. "
-                        f"IMPORTANTE: Al final de cada respuesta, haz una pregunta PERSONAL que se relacione con su situación específica y sentimientos. "
-                        f"Haz la pregunta sobre ELLOS específicamente, no genérica. "
-                        f"NO ofrezcas el test de nuevo - acaba de completarlo. Céntrate en explicar sus resultados y ayudarle a entender sus patrones. "
-                        f"Usa el conocimiento proporcionado abajo para enriquecer tus respuestas con ideas específicas de la teoría del apego."
-                    )
-                # Inject knowledge into the post-test prompt
-                enhanced_post_test_prompt = inject_knowledge_into_prompt(post_test_prompt, relevant_knowledge)
-                print(f"[DEBUG] Enhanced post-test prompt length: {len(enhanced_post_test_prompt)}")
-                print(f"[DEBUG] Enhanced post-test prompt preview: {enhanced_post_test_prompt[:500]}...")
-                # Reset chatbot with enhanced personalized prompt and conversation history
-                chatbot.reset()
-                chatbot.messages.append({"role": "system", "content": enhanced_post_test_prompt})
-                # Add conversation history for context
-                for msg_history in conversation_history:
-                    chatbot.messages.append({"role": msg_history["role"], "content": msg_history["content"]})
-                response = await run_in_threadpool(chatbot.chat, message)
+                    response = f"<p><strong>Test de Pareja - Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
+                
+                for i, option in enumerate(question['options']):
+                    response += f"<li>{option['text']}</li>"
+                response += "</ul>"
+            else:
+                # Skip partner test, move to conversation
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = "¡Perfecto! ¿Sobre qué te gustaría hablar hoy?"
+            
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
+        
+        # Handle post-test conversation (user just finished test)
+        elif state == "post_test":
+            print(f"[DEBUG] ENTERED: post_test state - user just finished test")
+            print(f"[DEBUG] User message: '{message}'")
+            
+            # Move to collecting personal information after test
+            await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            
+            # Add daily affirmation and PDF notification
+            affirmation_response = ""
+            if await should_offer_affirmation(user_id):
+                affirmation = await get_daily_affirmation(user_id)
+                if affirmation:
+                    affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+            
+            pdf_notification = await generate_pdf_notification(user_id, msg.language)
+            
+            # Generate personal questions prompt
+            personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
+            
+            response = pdf_notification + affirmation_response + "<br><br>" + personal_prompt
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
         # Handle questions about test results - transition to conversation state
         elif state == "greeting" and any(keyword in message.lower() for keyword in ["resultados", "resultado", "test", "prueba", "estilo de apego", "apego", "recuerdas", "respuestas"]):
             print(f"[DEBUG] User asking about test results from greeting state, transitioning to conversation")
@@ -1719,7 +2001,9 @@ async def chat_endpoint(msg: Message):
                 affirmation = await get_daily_affirmation(user_id)
                 if affirmation:
                     response = f"💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\"<br><br>¿Te gustaría reflexionar sobre esta afirmación o prefieres que hablemos de otra cosa?"
-                    return {"response": response}
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
             
             # Check if user is asking about incorrect information from greeting
             if any(keyword in message.lower() for keyword in ["cuando mencione", "nunca mencioné", "no mencioné", "no dije", "no he dicho", "no he mencionado", "incorrecto", "error", "equivocado"]):
@@ -1862,6 +2146,8 @@ IMPORTANTE: Usa esta información específica sobre las respuestas del usuario p
 
         if response is None:
             response = "Lo siento, ha ocurrido un error inesperado. Por favor, intenta de nuevo o formula tu pregunta de otra manera."
+        if original_language in ["en", "ru"]:
+            response = await translate_text(response, original_language)
         return {"response": response}
     except Exception as e:
         print(f"[DEBUG] Exception in chat_endpoint: {e}")
@@ -1927,7 +2213,7 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
         return []
 
 # Funciones para guardar y recuperar datos personales del usuario
-async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, tiempo_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None, fecha_ultima_afirmacion=None, afirmacion_anxious=None, afirmacion_avoidant=None, afirmacion_secure=None, afirmacion_disorganized=None):
+async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, nombre_pareja=None, tiempo_pareja=None, estado_emocional=None, estado_relacion=None, opinion_apego=None, fecha_ultima_conversacion=None, fecha_ultima_mencion_pareja=None, attachment_style=None, partner_attachment_style=None, relationship_status=None, fecha_ultima_afirmacion=None, afirmacion_anxious=None, afirmacion_avoidant=None, afirmacion_secure=None, afirmacion_disorganized=None):
     if not database or not database.is_connected:
         return False
     
@@ -1954,6 +2240,8 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
         "fecha_ultima_conversacion": fecha_ultima_conversacion,
         "fecha_ultima_mencion_pareja": fecha_ultima_mencion_pareja,
         "attachment_style": attachment_style,
+        "partner_attachment_style": partner_attachment_style,
+        "relationship_status": relationship_status,
         "fecha_ultima_afirmacion": fecha_ultima_afirmacion,
         "afirmacion_anxious": afirmacion_anxious,
         "afirmacion_avoidant": afirmacion_avoidant,
@@ -1975,6 +2263,8 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
                 fecha_ultima_conversacion = COALESCE(:fecha_ultima_conversacion, fecha_ultima_conversacion),
                 fecha_ultima_mencion_pareja = COALESCE(:fecha_ultima_mencion_pareja, fecha_ultima_mencion_pareja),
                 attachment_style = COALESCE(:attachment_style, attachment_style),
+                partner_attachment_style = COALESCE(:partner_attachment_style, partner_attachment_style),
+                relationship_status = COALESCE(:relationship_status, relationship_status),
                 fecha_ultima_afirmacion = COALESCE(:fecha_ultima_afirmacion, fecha_ultima_afirmacion),
                 afirmacion_anxious = COALESCE(:afirmacion_anxious, afirmacion_anxious),
                 afirmacion_avoidant = COALESCE(:afirmacion_avoidant, afirmacion_avoidant),
@@ -1985,10 +2275,288 @@ async def save_user_profile(user_id, nombre=None, edad=None, tiene_pareja=None, 
     else:
         # Insert
         await database.execute("""
-            INSERT INTO user_profile (user_id, nombre, edad, tiene_pareja, nombre_pareja, tiempo_pareja, estado_emocional, estado_relacion, opinion_apego, fecha_ultima_conversacion, fecha_ultima_mencion_pareja, attachment_style, fecha_ultima_afirmacion, afirmacion_anxious, afirmacion_avoidant, afirmacion_secure, afirmacion_disorganized)
-            VALUES (:user_id, :nombre, :edad, :tiene_pareja, :nombre_pareja, :tiempo_pareja, :estado_emocional, :estado_relacion, :opinion_apego, :fecha_ultima_conversacion, :fecha_ultima_mencion_pareja, :attachment_style, :fecha_ultima_afirmacion, :afirmacion_anxious, :afirmacion_avoidant, :afirmacion_secure, :afirmacion_disorganized)
+            INSERT INTO user_profile (user_id, nombre, edad, tiene_pareja, nombre_pareja, tiempo_pareja, estado_emocional, estado_relacion, opinion_apego, fecha_ultima_conversacion, fecha_ultima_mencion_pareja, attachment_style, partner_attachment_style, relationship_status, fecha_ultima_afirmacion, afirmacion_anxious, afirmacion_avoidant, afirmacion_secure, afirmacion_disorganized)
+            VALUES (:user_id, :nombre, :edad, :tiene_pareja, :nombre_pareja, :tiempo_pareja, :estado_emocional, :estado_relacion, :opinion_apego, :fecha_ultima_conversacion, :fecha_ultima_mencion_pareja, :attachment_style, :partner_attachment_style, :relationship_status, :fecha_ultima_afirmacion, :afirmacion_anxious, :afirmacion_avoidant, :afirmacion_secure, :afirmacion_disorganized)
         """, values)
     return True
+
+async def generate_first_visit_greeting(user_id, language="es"):
+    """Generate greeting for first visit with test/chat options and daily affirmation for secure"""
+    if language == "en":
+        greeting = (
+            "<p>Hey there! 😊 Welcome! I'm Eldric, your emotional coach and relationship expert.</p>"
+            "<p>I'm here to help you understand your attachment style and improve your relationships. I can offer you two ways to get started:</p>"
+            "<p><strong>A) Take the attachment style test</strong> - Discover your relationship patterns and get personalized insights</p>"
+            "<p><strong>B) Just chat</strong> - Tell me what's on your mind and we can talk about anything relationship-related</p>"
+            "<p>What would you like to do?</p>"
+        )
+        
+        # Add daily affirmation for secure attachment style
+        affirmation = "You are worthy of love and connection. Your feelings matter and you deserve to be heard and understood."
+        greeting += f"<br><br>💝 <strong>Daily affirmation for you:</strong><br><br>\"{affirmation}\""
+        
+    else:  # Spanish
+        greeting = (
+            "<p>¡Hola! 😊 ¡Bienvenido/a! Soy Eldric, tu coach emocional y experto en relaciones.</p>"
+            "<p>Estoy aquí para ayudarte a entender tu estilo de apego y mejorar tus relaciones. Te puedo ofrecer dos formas de empezar:</p>"
+            "<p><strong>A) Hacer el test de estilos de apego</strong> - Descubre tus patrones de relación y obtén insights personalizados</p>"
+            "<p><strong>B) Solo charlar</strong> - Cuéntame qué tienes en mente y podemos hablar de cualquier cosa relacionada con relaciones</p>"
+            "<p>¿Qué te gustaría hacer?</p>"
+        )
+        
+        # Add daily affirmation for secure attachment style
+        affirmation = "Eres digno/a de amor y conexión. Tus sentimientos importan y mereces ser escuchado/a y comprendido/a."
+        greeting += f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+    
+    return greeting
+
+async def generate_personal_questions_prompt(user_id, language="es"):
+    """Generate prompt to collect personal information after test or chat"""
+    user_profile = await get_user_profile(user_id)
+    
+    # Check what information we already have
+    has_name = bool(user_profile and user_profile.get("nombre"))
+    has_age = bool(user_profile and user_profile.get("edad"))
+    has_partner_info = bool(user_profile and user_profile.get("tiene_pareja") is not None)
+    
+    if language == "en":
+        prompt = "<p>Great! Now I'd love to get to know you better so I can provide more personalized support. Could you tell me:</p>"
+        
+        if not has_name:
+            prompt += "<p>• What's your name?</p>"
+        if not has_age:
+            prompt += "<p>• How old are you?</p>"
+        if not has_partner_info:
+            prompt += "<p>• Do you have a partner or are you in a relationship?</p>"
+        
+        prompt += "<p>This information helps me tailor my advice to your specific situation. Feel free to share as much or as little as you're comfortable with!</p>"
+        
+    else:  # Spanish
+        prompt = "<p>¡Perfecto! Ahora me gustaría conocerte mejor para poder ofrecerte un apoyo más personalizado. ¿Podrías contarme:</p>"
+        
+        if not has_name:
+            prompt += "<p>• ¿Cómo te llamas?</p>"
+        if not has_age:
+            prompt += "<p>• ¿Cuántos años tienes?</p>"
+        if not has_partner_info:
+            prompt += "<p>• ¿Tienes pareja o estás en una relación?</p>"
+        
+        prompt += "<p>Esta información me ayuda a adaptar mis consejos a tu situación específica. ¡Comparte lo que te sientas cómodo/a compartiendo!</p>"
+    
+    return prompt
+
+async def generate_partner_test_offer(user_id, language="es"):
+    """Generate offer for partner test if user has a partner"""
+    user_profile = await get_user_profile(user_id)
+    
+    if not user_profile or not user_profile.get("tiene_pareja"):
+        return None
+    
+    partner_name = user_profile.get("nombre_pareja", "")
+    partner_mention = f" {partner_name}" if partner_name else ""
+    
+    if language == "en":
+        offer = (
+            f"<p>I notice you mentioned having a partner{partner_mention}. Would you like to take a test to understand your partner's attachment style as well?</p>"
+            "<p>This can help us understand your relationship dynamics better and provide more targeted advice for both of you.</p>"
+            "<p><strong>A) Yes, I'd like to take the partner test</strong></p>"
+            "<p><strong>B) Not right now, let's continue chatting</strong></p>"
+            "<p>What would you prefer?</p>"
+        )
+    else:  # Spanish
+        offer = (
+            f"<p>Veo que mencionaste tener pareja{partner_mention}. ¿Te gustaría hacer un test para entender también el estilo de apego de tu pareja?</p>"
+            "<p>Esto puede ayudarnos a entender mejor las dinámicas de tu relación y ofrecer consejos más específicos para ambos.</p>"
+            "<p><strong>A) Sí, me gustaría hacer el test de pareja</strong></p>"
+            "<p><strong>B) Ahora no, sigamos charlando</strong></p>"
+            "<p>¿Qué prefieres?</p>"
+        )
+    
+    return offer
+
+async def generate_pdf_notification(user_id, language="es"):
+    """Generate notification about PDF being sent to email"""
+    # Check if user's email is verified
+    email_verified = await is_email_verified(user_id)
+    
+    if not email_verified:
+        if language == "en":
+            notification = (
+                "<p>📧 <strong>To receive your PDF report:</strong> Please verify your email address first.</p>"
+                "<p>I'll send you a detailed report with your test results and personalized insights once your email is verified.</p>"
+                "<p>This helps ensure the report reaches the right person and maintains your privacy.</p>"
+            )
+        else:  # Spanish
+            notification = (
+                "<p>📧 <strong>Para recibir tu reporte PDF:</strong> Por favor verifica tu dirección de email primero.</p>"
+                "<p>Te enviaré un reporte detallado con tus resultados del test e insights personalizados una vez que verifiques tu email.</p>"
+                "<p>Esto ayuda a asegurar que el reporte llegue a la persona correcta y mantenga tu privacidad.</p>"
+            )
+    else:
+        # Actually send the PDF email
+        pdf_sent = await send_pdf_by_email(user_id, language=language)
+        
+        if pdf_sent:
+            if language == "en":
+                notification = (
+                    "<p>📧 <strong>Great news!</strong> I've sent a detailed PDF report with your test results and personalized insights to your email address.</p>"
+                    "<p>This report includes your attachment style analysis, relationship dynamics (if you took the partner test), and actionable tips for improving your relationships.</p>"
+                    "<p>You can refer to it anytime for guidance and share it with your partner if you'd like!</p>"
+                )
+            else:  # Spanish
+                notification = (
+                    "<p>📧 <strong>¡Excelentes noticias!</strong> He enviado un reporte PDF detallado con tus resultados del test e insights personalizados a tu dirección de email.</p>"
+                    "<p>Este reporte incluye tu análisis de estilo de apego, dinámicas de relación (si hiciste el test de pareja), y consejos prácticos para mejorar tus relaciones.</p>"
+                    "<p>¡Puedes consultarlo cuando quieras para orientación y compartirlo con tu pareja si te apetece!</p>"
+                )
+        else:
+            if language == "en":
+                notification = (
+                    "<p>📧 <strong>I tried to send your PDF report</strong> but encountered a technical issue.</p>"
+                    "<p>Don't worry! Your results are saved and I can try sending it again later. You can also access your information anytime through our chat.</p>"
+                )
+            else:  # Spanish
+                notification = (
+                    "<p>📧 <strong>Intenté enviar tu reporte PDF</strong> pero encontré un problema técnico.</p>"
+                    "<p>¡No te preocupes! Tus resultados están guardados y puedo intentar enviarlo de nuevo más tarde. También puedes acceder a tu información en cualquier momento a través de nuestro chat.</p>"
+                )
+    
+    return notification
+
+async def generate_verification_code():
+    """Generate a 6-digit verification code"""
+    import random
+    return str(random.randint(100000, 999999))
+
+async def send_verification_email(email: str, code: str, language: str = "es"):
+    """Send verification code to email"""
+    try:
+        from email_config import send_verification_email as send_email
+        return send_email(email, code, language)
+    except ImportError:
+        print(f"[DEBUG] Email module not available. Verification code for {email}: {code}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to send verification email: {e}")
+        return False
+
+async def store_verification_code(user_id: str, code: str):
+    """Store verification code with expiration time"""
+    if not database or not database.is_connected:
+        return False
+    
+    # Set expiration time to 15 minutes from now
+    expires_at = datetime.datetime.now() + datetime.timedelta(minutes=15)
+    
+    try:
+        await database.execute("""
+            UPDATE users 
+            SET verification_code = :code, verification_code_expires = :expires
+            WHERE user_id = :user_id
+        """, values={"code": code, "expires": expires_at, "user_id": user_id})
+        return True
+    except Exception as e:
+        print(f"[DEBUG] Error storing verification code: {e}")
+        return False
+
+async def verify_email_code(user_id: str, code: str):
+    """Verify email code and mark email as verified"""
+    if not database or not database.is_connected:
+        return False
+    
+    try:
+        # Get stored code and expiration
+        user = await database.fetch_one("""
+            SELECT verification_code, verification_code_expires 
+            FROM users 
+            WHERE user_id = :user_id
+        """, values={"user_id": user_id})
+        
+        if not user:
+            return False
+        
+        stored_code = user["verification_code"]
+        expires_at = user["verification_code_expires"]
+        
+        # Check if code matches and hasn't expired
+        if stored_code == code and expires_at > datetime.datetime.now():
+            # Mark email as verified and clear verification code
+            await database.execute("""
+                UPDATE users 
+                SET email_verified = TRUE, verification_code = NULL, verification_code_expires = NULL
+                WHERE user_id = :user_id
+            """, values={"user_id": user_id})
+            return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"[DEBUG] Error verifying email code: {e}")
+        return False
+
+async def is_email_verified(user_id: str):
+    """Check if user's email is verified"""
+    if not database or not database.is_connected:
+        return False
+    
+    try:
+        user = await database.fetch_one("""
+            SELECT email_verified FROM users WHERE user_id = :user_id
+        """, values={"user_id": user_id})
+        
+        return user and user["email_verified"] == True
+    except Exception as e:
+        print(f"[DEBUG] Error checking email verification: {e}")
+        return False
+
+async def send_pdf_by_email(user_id: str, pdf_path: str = None, language: str = "es"):
+    """Send PDF report by email to verified users"""
+    if not database or not database.is_connected:
+        return False
+    
+    try:
+        # Get user email
+        user = await database.fetch_one("""
+            SELECT email FROM users WHERE user_id = :user_id
+        """, values={"user_id": user_id})
+        
+        if not user:
+            return False
+        
+        email = user["email"]
+        
+        # Check if email is verified
+        if not await is_email_verified(user_id):
+            print(f"[DEBUG] Email {email} not verified, cannot send PDF")
+            return False
+        
+        # Get user profile for personalization
+        user_profile = await get_user_profile(user_id)
+        user_name = user_profile.get("nombre") if user_profile else None
+        
+        # Send PDF email
+        try:
+            from email_config import send_pdf_email
+            return send_pdf_email(email, pdf_path, user_name, language)
+        except ImportError:
+            print(f"[DEBUG] Email module not available. PDF would be sent to {email}")
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to send PDF email: {e}")
+            return False
+            
+    except Exception as e:
+        print(f"[ERROR] Error in send_pdf_by_email: {e}")
+        return False
+
+async def is_first_visit(user_id):
+    """Check if this is the user's first visit (no conversation history)"""
+    if not database or not database.is_connected:
+        return True
+    
+    # Check if user has any conversation history
+    history = await load_conversation_history(user_id, limit=1)
+    return len(history) == 0
 
 async def should_offer_affirmation(user_id):
     """Check if user should be offered a daily affirmation"""
@@ -2015,32 +2583,51 @@ async def should_offer_affirmation(user_id):
 
 async def get_daily_affirmation(user_id):
     """Get the next sequential daily affirmation for the user's attachment style"""
+    if not database or not database.is_connected:
+        return None
+        
     user_profile = await get_user_profile(user_id)
     if not user_profile:
         return None
     
     attachment_style = user_profile.get("attachment_style")
-    if not attachment_style or attachment_style not in DAILY_AFFIRMATIONS:
+    if not attachment_style:
         return None
-    
-    affirmations = DAILY_AFFIRMATIONS[attachment_style]
     
     # Get the last affirmation for this style to determine the next one
     last_affirmation = user_profile.get(f"afirmacion_{attachment_style}")
     
     if last_affirmation:
-        # Find the index of the last affirmation
-        try:
-            last_index = affirmations.index(last_affirmation)
-            next_index = (last_index + 1) % len(affirmations)  # Cycle back to 0 after 19
-        except ValueError:
-            # If last affirmation not found in list, start from 0
+        # Find the index of the last affirmation in database
+        last_affirmation_row = await database.fetch_one("""
+            SELECT order_index FROM affirmations 
+            WHERE attachment_style = :style AND text = :text AND language = 'es'
+        """, {"style": attachment_style, "text": last_affirmation})
+        
+        if last_affirmation_row:
+            last_index = last_affirmation_row["order_index"]
+            # Get total count of affirmations for this style
+            total_count = await database.fetch_val("""
+                SELECT COUNT(*) FROM affirmations 
+                WHERE attachment_style = :style AND language = 'es'
+            """, {"style": attachment_style})
+            next_index = (last_index + 1) % total_count
+        else:
             next_index = 0
     else:
         # First time, start with index 0
         next_index = 0
     
-    selected_affirmation = affirmations[next_index]
+    # Get the next affirmation from database
+    next_affirmation_row = await database.fetch_one("""
+        SELECT text FROM affirmations 
+        WHERE attachment_style = :style AND order_index = :index AND language = 'es'
+    """, {"style": attachment_style, "index": next_index})
+    
+    if not next_affirmation_row:
+        return None
+    
+    selected_affirmation = next_affirmation_row["text"]
     
     # Save the affirmation and update the date
     await save_user_profile(
