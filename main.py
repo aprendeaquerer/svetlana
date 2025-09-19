@@ -1260,9 +1260,10 @@ async def chat_endpoint(msg: Message):
                     test_completed = test_results.get("completed", False)
                     attachment_style = test_results.get("style") if test_completed else None
                     
-                    # If user has completed test, offer paywall and partner test instead of basic greeting
+                    # If user has completed test, check if they're premium
                     if test_completed and attachment_style:
-                        print(f"[DEBUG] User has completed test, offering paywall and partner test")
+                        is_premium = await is_premium_user(user_id)
+                        print(f"[DEBUG] User has completed test, is_premium: {is_premium}")
                         
                         # Add daily affirmation
                         affirmation_response = ""
@@ -1271,10 +1272,16 @@ async def chat_endpoint(msg: Message):
                             if affirmation:
                                 affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
                         
-                        # Show paywall to unlock partner test and premium features
-                        paywall_message = await generate_paywall_message(user_id, msg.language)
-                        await set_state(user_id, "paywall", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                        response = affirmation_response + "<br><br>" + paywall_message
+                        if is_premium:
+                            # Premium user - offer partner test directly
+                            partner_offer = await generate_partner_test_offer(user_id, msg.language)
+                            await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                            response = affirmation_response + "<br><br>" + partner_offer
+                        else:
+                            # Non-premium user - show paywall
+                            paywall_message = await generate_paywall_message(user_id, msg.language)
+                            await set_state(user_id, "paywall", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                            response = affirmation_response + "<br><br>" + paywall_message
                         
                         await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                         
@@ -1871,8 +1878,11 @@ async def chat_endpoint(msg: Message):
                 user_style = user_profile.get("attachment_style") if user_profile else None
                 
                 # Calculate relationship status
+                print(f"[DEBUG] Calculating relationship status - User style: '{user_style}', Partner style: '{partner_style}'")
                 relationship_status = calculate_relationship_status(user_style, partner_style)
+                print(f"[DEBUG] Relationship status calculated: '{relationship_status}'")
                 relationship_description = get_relationship_description(relationship_status, msg.language)
+                print(f"[DEBUG] Relationship description: '{relationship_description}'")
                 
                 # Save partner information
                 await save_user_profile(user_id, 
@@ -1965,8 +1975,9 @@ async def chat_endpoint(msg: Message):
         elif state == "paywall" and message.upper() in ["A", "B"]:
             print(f"[DEBUG] ENTERED: paywall state with choice {message.upper()}")
             if message.upper() == "A":
-                # User wants to pay - redirect to payment (for now, just continue to partner test offer)
+                # User wants to pay - mark as premium and continue to partner test offer
                 # TODO: Integrate with Stripe or payment processor
+                await set_premium_user(user_id, True)
                 partner_offer = await generate_partner_test_offer(user_id, msg.language)
                 await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
                 response = "¡Perfecto! Ahora tienes acceso a todas las funciones premium. " + partner_offer
@@ -2591,6 +2602,35 @@ async def is_email_verified(user_id: str):
         return user and user["email_verified"] == True
     except Exception as e:
         print(f"[DEBUG] Error checking email verification: {e}")
+        return False
+
+async def is_premium_user(user_id: str):
+    """Check if user has premium access"""
+    if not database or not database.is_connected:
+        return False
+    
+    try:
+        user = await database.fetch_one("""
+            SELECT is_premium FROM users WHERE user_id = :user_id
+        """, values={"user_id": user_id})
+        
+        return user and user["is_premium"] == True
+    except Exception as e:
+        print(f"[DEBUG] Error checking premium status: {e}")
+        return False
+
+async def set_premium_user(user_id: str, is_premium: bool = True):
+    """Set user's premium status"""
+    if not database or not database.is_connected:
+        return False
+    
+    try:
+        await database.execute("""
+            UPDATE users SET is_premium = :is_premium WHERE user_id = :user_id
+        """, values={"user_id": user_id, "is_premium": is_premium})
+        return True
+    except Exception as e:
+        print(f"[DEBUG] Error setting premium status: {e}")
         return False
 
 async def send_pdf_by_email(user_id: str, pdf_path: str = None, language: str = "es"):

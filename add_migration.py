@@ -76,6 +76,12 @@ async def migrate_database():
     except Exception as e:
         print(f"[DEBUG] (migración) verification_code_expires ya existe o error benigno: {e}")
     
+    # Add premium user column
+    try:
+        await database.execute('ALTER TABLE users ADD COLUMN is_premium BOOLEAN DEFAULT FALSE')
+    except Exception as e:
+        print(f"[DEBUG] (migración) is_premium ya existe o error benigno: {e}")
+    
     return True
 
 async def migrate_user_profile(database):
