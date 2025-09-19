@@ -1303,6 +1303,10 @@ async def chat_endpoint(msg: Message):
                     await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
                     # Change state to conversation so user can have normal conversations
                     await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    
+                    # Apply translation if needed
+                    if original_language in ["en", "ru"]:
+                        response = await translate_text(response, original_language)
                     return {"response": response}
                 except Exception as e:
                     print(f"[DEBUG] Error in auto-greeting: {e}")
