@@ -1373,10 +1373,10 @@ async def chat_endpoint(msg: Message):
             if is_first:
                 print(f"[DEBUG] First visit detected - showing new greeting flow")
                 response = await generate_first_visit_greeting(user_id, msg.language)
-                    await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
-                    if original_language in ["en", "ru"]:
-                        response = await translate_text(response, original_language)
-                    return {"response": response}
+                await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                if original_language in ["en", "ru"]:
+                    response = await translate_text(response, original_language)
+                return {"response": response}
             
             # Get user context to determine appropriate greeting for returning users
             user_profile = await get_user_profile(user_id)
