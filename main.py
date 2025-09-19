@@ -120,31 +120,49 @@ except ImportError as e:
 # Daily affirmations are now stored in the database (affirmations table)
 
 # --- Lightweight translation layer for testing (es <-> en/ru) ---
+_translator_available = False
 try:
-    from googletrans import Translator  # type: ignore
-    _translator = Translator()
+    from deep_translator import GoogleTranslator  # type: ignore
+    _translator_available = True
+    print("[DEBUG] Deep Translator successfully imported and available")
+except Exception as e:
+    print(f"[DEBUG] Deep Translator not available: {e}")
+    print("[DEBUG] Translation will be disabled - install with: pip install deep-translator")
 
-    async def translate_text(text: str, target_lang: str) -> str:
-        if not text or target_lang == "es":
-            return text
-        try:
-            return _translator.translate(text, dest=target_lang).text
-        except Exception:
-            return text
-
-    async def translate_to_es(text: str, source_lang: str) -> str:
-        if not text or source_lang == "es":
-            return text
-        try:
-            return _translator.translate(text, src=source_lang, dest="es").text
-        except Exception:
-            return text
-except Exception:
-    # Fallback no-op translation if googletrans is unavailable
-    async def translate_text(text: str, target_lang: str) -> str:
+async def translate_text(text: str, target_lang: str) -> str:
+    if not text or target_lang == "es":
+        return text
+    if not _translator_available:
+        print(f"[DEBUG] Translation requested but deep-translator not available. Returning original text.")
+        return text
+    try:
+        # Map our language codes to Google Translate codes
+        lang_map = {"en": "en", "ru": "ru", "es": "es"}
+        target_code = lang_map.get(target_lang, target_lang)
+        
+        result = GoogleTranslator(source='es', target=target_code).translate(text)
+        print(f"[DEBUG] Translated to {target_lang}: '{text[:50]}...' -> '{result[:50]}...'")
+        return result
+    except Exception as e:
+        print(f"[DEBUG] Translation error: {e}")
         return text
 
-    async def translate_to_es(text: str, source_lang: str) -> str:
+async def translate_to_es(text: str, source_lang: str) -> str:
+    if not text or source_lang == "es":
+        return text
+    if not _translator_available:
+        print(f"[DEBUG] Translation requested but deep-translator not available. Returning original text.")
+        return text
+    try:
+        # Map our language codes to Google Translate codes
+        lang_map = {"en": "en", "ru": "ru", "es": "es"}
+        source_code = lang_map.get(source_lang, source_lang)
+        
+        result = GoogleTranslator(source=source_code, target='es').translate(text)
+        print(f"[DEBUG] Translated to ES: '{text[:50]}...' -> '{result[:50]}...'")
+        return result
+    except Exception as e:
+        print(f"[DEBUG] Translation error: {e}")
         return text
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
