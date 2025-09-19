@@ -1260,6 +1260,30 @@ async def chat_endpoint(msg: Message):
                     test_completed = test_results.get("completed", False)
                     attachment_style = test_results.get("style") if test_completed else None
                     
+                    # If user has completed test, offer paywall and partner test instead of basic greeting
+                    if test_completed and attachment_style:
+                        print(f"[DEBUG] User has completed test, offering paywall and partner test")
+                        
+                        # Add daily affirmation
+                        affirmation_response = ""
+                        if await should_offer_affirmation(user_id):
+                            affirmation = await get_daily_affirmation(user_id)
+                            if affirmation:
+                                affirmation_response = f"<br><br>💝 <strong>Afirmación del día para ti:</strong><br><br>\"{affirmation}\""
+                        
+                        # Show paywall to unlock partner test and premium features
+                        paywall_message = await generate_paywall_message(user_id, msg.language)
+                        await set_state(user_id, "paywall", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                        response = affirmation_response + "<br><br>" + paywall_message
+                        
+                        await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                        
+                        # Apply translation if needed
+                        if original_language in ["en", "ru"]:
+                            response = await translate_text(response, original_language)
+                        return {"response": response}
+                    
+                    # If user hasn't completed test, show basic greeting
                     # Generate personalized greeting with daily affirmation
                     nombre = user_profile.get("nombre") if user_profile else None
                     nombre_pareja = user_profile.get("nombre_pareja") if user_profile else None
