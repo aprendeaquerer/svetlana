@@ -1134,13 +1134,16 @@ async def chat_endpoint(msg: Message):
         # Normalize inbound: translate to Spanish for core logic if needed
         original_language = (msg.language or "es").lower()
         incoming_raw = msg.message.strip()
+        print(f"[DEBUG] user_id: {user_id}")
+        print(f"[DEBUG] incoming_raw: '{incoming_raw}'")
+        print(f"[DEBUG] original_language: '{original_language}'")
+        print(f"[DEBUG] _translator_available: {_translator_available}")
+        
         if original_language in ["en", "ru"]:
             message = await translate_to_es(incoming_raw, original_language)
         else:
             message = incoming_raw
-        print(f"[DEBUG] user_id: {user_id}")
         print(f"[DEBUG] message (normalized to es): '{message}'")
-        print(f"[DEBUG] language (original): {original_language}")
 
         # Load user context first to check state
         user_context = await load_user_context(user_id)
@@ -2009,38 +2012,55 @@ async def chat_endpoint(msg: Message):
             return {"response": response}
         
         # Handle partner test offer
-        elif state == "partner_test_offer" and message.upper() in ["A", "B", "C"]:
-            print(f"[DEBUG] ENTERED: partner_test_offer state with choice {message.upper()}")
-            if message.upper() == "A":
-                # Start partner test
-                await set_state(user_id, "partner_q1", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                questions = PARTNER_TEST_QUESTIONS.get(msg.language, PARTNER_TEST_QUESTIONS["es"])
-                question = questions[0]
-                
-                if msg.language == "en":
-                    response = f"<p><strong>Partner Test - Question 1 of 10:</strong> {question['question']}</p><ul>"
-                else:  # Spanish
-                    response = f"<p><strong>Test de Pareja - Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
-                
-                for i, option in enumerate(question['options']):
-                    response += f"<li>{option['text']}</li>"
-                response += "</ul>"
-            elif message.upper() == "B":
-                # Has partner but skip test, save info and move to personal questions
-                await save_user_profile(user_id, tiene_pareja=True)
-                await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
-                response = "Entendido. " + personal_prompt
-            else:  # C - No partner
-                # No partner, save info and move to personal questions
-                await save_user_profile(user_id, tiene_pareja=False)
-                await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
-                response = "Entendido. " + personal_prompt
+        elif state == "partner_test_offer":
+            # Check if user already completed partner test (all q1-q10 have answers)
+            if q1 and q2 and q3 and q4 and q5 and q6 and q7 and q8 and q9 and q10:
+                print(f"[DEBUG] User already completed partner test, moving to conversation")
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = "¡Perfecto! Ya completaste el test de pareja. ¿Sobre qué te gustaría hablar?"
+                if original_language in ["en", "ru"]:
+                    response = await translate_text(response, original_language)
+                return {"response": response}
             
-            if original_language in ["en", "ru"]:
-                response = await translate_text(response, original_language)
-            return {"response": response}
+            # Handle partner test offer choices
+            if message.upper() in ["A", "B", "C"]:
+                print(f"[DEBUG] ENTERED: partner_test_offer state with choice {message.upper()}")
+                if message.upper() == "A":
+                    # Start partner test
+                    await set_state(user_id, "partner_q1", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    questions = PARTNER_TEST_QUESTIONS.get(msg.language, PARTNER_TEST_QUESTIONS["es"])
+                    question = questions[0]
+                    
+                    if msg.language == "en":
+                        response = f"<p><strong>Partner Test - Question 1 of 10:</strong> {question['question']}</p><ul>"
+                    else:  # Spanish
+                        response = f"<p><strong>Test de Pareja - Pregunta 1 de 10:</strong> {question['question']}</p><ul>"
+                    
+                    for i, option in enumerate(question['options']):
+                        response += f"<li>{option['text']}</li>"
+                    response += "</ul>"
+                elif message.upper() == "B":
+                    # Has partner but skip test, save info and move to personal questions
+                    await save_user_profile(user_id, tiene_pareja=True)
+                    await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
+                    response = "Entendido. " + personal_prompt
+                else:  # C - No partner
+                    # No partner, save info and move to personal questions
+                    await save_user_profile(user_id, tiene_pareja=False)
+                    await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                    personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
+                    response = "Entendido. " + personal_prompt
+                
+                if original_language in ["en", "ru"]:
+                    response = await translate_text(response, original_language)
+                return {"response": response}
+            else:
+                # User sent text message instead of A/B/C choice
+                print(f"[DEBUG] User sent text message in partner_test_offer state: '{message}'")
+                # Move to conversation state to handle the text message
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                # Continue to conversation logic below
         
         # Handle post-test conversation (user just finished test)
         elif state == "post_test":
