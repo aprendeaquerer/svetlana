@@ -1424,12 +1424,21 @@ async def chat_endpoint(msg: Message):
             # Preserve existing test answers when resetting to greeting state
             await set_state(user_id, "greeting", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
             
-            # Check if this is first visit
+            # Check if this is first visit, but also check if user completed partner test
             is_first = await is_first_visit(user_id)
-            if is_first:
+            has_completed_partner_test = q1 and q2 and q3 and q4 and q5 and q6 and q7 and q8 and q9 and q10
+            
+            if is_first and not has_completed_partner_test:
                 print(f"[DEBUG] First visit detected - showing new greeting flow")
                 response = await generate_first_visit_greeting(user_id, msg.language)
                 await save_user_profile(user_id, fecha_ultima_conversacion=datetime.datetime.now())
+                if original_language in ["en", "ru"]:
+                    response = await translate_text(response, original_language)
+                return {"response": response}
+            elif has_completed_partner_test:
+                print(f"[DEBUG] User completed partner test, moving to conversation")
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = "¡Hola! Ya completaste el test de pareja. ¿Sobre qué te gustaría hablar hoy?"
                 if original_language in ["en", "ru"]:
                     response = await translate_text(response, original_language)
                 return {"response": response}
@@ -2293,7 +2302,7 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
         
         for row in reversed(rows):
             content = row["content"]
-            content_length = len(content)
+            content_length = len(content) if content else 0
             
             # Check if adding this message would exceed our limit
             if total_content_length + content_length > max_total_content:
@@ -2302,7 +2311,7 @@ async def load_conversation_history(user_id: str, limit: int = 10) -> List[Dict]
             
             messages.append({
                 "role": row["role"],
-                "content": content
+                "content": content or ""
             })
             total_content_length += content_length
         
