@@ -1912,20 +1912,9 @@ async def chat_endpoint(msg: Message):
             
             # Check if we have enough information or if user wants to continue
             if nombre and edad is not None and tiene_pareja is not None:
-                # We have all basic info, offer partner test if they have a partner
-                if tiene_pareja:
-                    partner_offer = await generate_partner_test_offer(user_id, msg.language)
-                    if partner_offer:
-                        await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                        response = partner_offer
-                    else:
-                        # No partner, move to conversation
-                        await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                        response = "¡Perfecto! Ya tengo toda la información que necesito. ¿Sobre qué te gustaría hablar hoy?"
-                else:
-                    # No partner, move to conversation
-                    await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                    response = "¡Perfecto! Ya tengo toda la información que necesito. ¿Sobre qué te gustaría hablar hoy?"
+                # We have all basic info, move to conversation
+                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                response = "¡Perfecto! Ya tengo toda la información que necesito. ¿Sobre qué te gustaría hablar hoy?"
             else:
                 # Still need more information
                 response = await generate_personal_questions_prompt(user_id, msg.language)
@@ -1935,7 +1924,7 @@ async def chat_endpoint(msg: Message):
             return {"response": response}
         
         # Handle partner test offer
-        elif state == "partner_test_offer" and message.upper() in ["A", "B"]:
+        elif state == "partner_test_offer" and message.upper() in ["A", "B", "C"]:
             print(f"[DEBUG] ENTERED: partner_test_offer state with choice {message.upper()}")
             if message.upper() == "A":
                 # Start partner test
@@ -1951,10 +1940,18 @@ async def chat_endpoint(msg: Message):
                 for i, option in enumerate(question['options']):
                     response += f"<li>{option['text']}</li>"
                 response += "</ul>"
-            else:
-                # Skip partner test, move to conversation
-                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-                response = "¡Perfecto! ¿Sobre qué te gustaría hablar hoy?"
+            elif message.upper() == "B":
+                # Has partner but skip test, save info and move to personal questions
+                await save_user_profile(user_id, tiene_pareja=True)
+                await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
+                response = "Entendido. " + personal_prompt
+            else:  # C - No partner
+                # No partner, save info and move to personal questions
+                await save_user_profile(user_id, tiene_pareja=False)
+                await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
+                response = "Entendido. " + personal_prompt
             
             if original_language in ["en", "ru"]:
                 response = await translate_text(response, original_language)
@@ -1965,9 +1962,6 @@ async def chat_endpoint(msg: Message):
             print(f"[DEBUG] ENTERED: post_test state - user just finished test")
             print(f"[DEBUG] User message: '{message}'")
             
-            # Move to collecting personal information after test
-            await set_state(user_id, "collecting_personal_info", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
-            
             # Add daily affirmation and PDF notification
             affirmation_response = ""
             if await should_offer_affirmation(user_id):
@@ -1977,10 +1971,11 @@ async def chat_endpoint(msg: Message):
             
             pdf_notification = await generate_pdf_notification(user_id, msg.language)
             
-            # Generate personal questions prompt
-            personal_prompt = await generate_personal_questions_prompt(user_id, msg.language)
+            # Always offer partner test immediately after main test
+            partner_offer = await generate_partner_test_offer(user_id, msg.language)
+            await set_state(user_id, "partner_test_offer", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+            response = pdf_notification + affirmation_response + "<br><br>" + partner_offer
             
-            response = pdf_notification + affirmation_response + "<br><br>" + personal_prompt
             if original_language in ["en", "ru"]:
                 response = await translate_text(response, original_language)
             return {"response": response}
@@ -2346,29 +2341,23 @@ async def generate_personal_questions_prompt(user_id, language="es"):
     return prompt
 
 async def generate_partner_test_offer(user_id, language="es"):
-    """Generate offer for partner test if user has a partner"""
-    user_profile = await get_user_profile(user_id)
-    
-    if not user_profile or not user_profile.get("tiene_pareja"):
-        return None
-    
-    partner_name = user_profile.get("nombre_pareja", "")
-    partner_mention = f" {partner_name}" if partner_name else ""
-    
+    """Generate offer for partner test - ask if user has a partner"""
     if language == "en":
         offer = (
-            f"<p>I notice you mentioned having a partner{partner_mention}. Would you like to take a test to understand your partner's attachment style as well?</p>"
-            "<p>This can help us understand your relationship dynamics better and provide more targeted advice for both of you.</p>"
-            "<p><strong>A) Yes, I'd like to take the partner test</strong></p>"
-            "<p><strong>B) Not right now, let's continue chatting</strong></p>"
+            "<p>Now that we understand your attachment style, I'd like to ask: <strong>Do you currently have a romantic partner?</strong></p>"
+            "<p>If you do, I can offer you a test to understand your partner's attachment style as well. This can help us understand your relationship dynamics better and provide more targeted advice for both of you.</p>"
+            "<p><strong>A) Yes, I have a partner and would like to take the partner test</strong></p>"
+            "<p><strong>B) I have a partner but don't want to take the test right now</strong></p>"
+            "<p><strong>C) I don't have a partner currently</strong></p>"
             "<p>What would you prefer?</p>"
         )
     else:  # Spanish
         offer = (
-            f"<p>Veo que mencionaste tener pareja{partner_mention}. ¿Te gustaría hacer un test para entender también el estilo de apego de tu pareja?</p>"
-            "<p>Esto puede ayudarnos a entender mejor las dinámicas de tu relación y ofrecer consejos más específicos para ambos.</p>"
-            "<p><strong>A) Sí, me gustaría hacer el test de pareja</strong></p>"
-            "<p><strong>B) Ahora no, sigamos charlando</strong></p>"
+            "<p>Ahora que entendemos tu estilo de apego, me gustaría preguntarte: <strong>¿Tienes actualmente una pareja romántica?</strong></p>"
+            "<p>Si la tienes, puedo ofrecerte un test para entender también el estilo de apego de tu pareja. Esto puede ayudarnos a entender mejor las dinámicas de tu relación y ofrecer consejos más específicos para ambos.</p>"
+            "<p><strong>A) Sí, tengo pareja y me gustaría hacer el test de pareja</strong></p>"
+            "<p><strong>B) Tengo pareja pero no quiero hacer el test ahora</strong></p>"
+            "<p><strong>C) No tengo pareja actualmente</strong></p>"
             "<p>¿Qué prefieres?</p>"
         )
     
