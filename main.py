@@ -1829,8 +1829,10 @@ async def chat_endpoint(msg: Message):
             option_index = ord(message.upper()) - ord('A')  # A->0, B->1, C->2, D->3
             selected_option = current_question['options'][option_index]
             
-            # Store the answer (we'll use a different storage mechanism for partner test)
-            # For now, we'll calculate the partner's style immediately
+            # Store partner answer in the state (we'll use q1-q10 to store partner answers)
+            partner_answers = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]
+            partner_answers[current_question_index] = selected_option['text']
+            
             next_state = f"partner_q{current_question_index + 2}"
             if current_question_index < len(questions) - 1:
                 # Continue to next question
@@ -1843,18 +1845,26 @@ async def chat_endpoint(msg: Message):
                     response += f"<li>{option['text']}</li>"
                 response += "</ul>"
                 
-                await set_state(user_id, next_state, None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state(user_id, next_state, None, partner_answers[0], partner_answers[1], partner_answers[2], partner_answers[3], partner_answers[4], partner_answers[5], partner_answers[6], partner_answers[7], partner_answers[8], partner_answers[9])
             else:
-                # Partner test completed - calculate partner's style
-                # We need to collect all partner answers and calculate the style
-                # For now, let's use a simple approach and calculate based on the last answer
+                # Partner test completed - calculate partner's style from all answers
                 partner_scores = {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0}
-                for style, score in selected_option['scores'].items():
-                    partner_scores[style] += score
                 
-                # For a complete implementation, we'd need to store all partner answers
-                # For now, we'll use the last answer as a proxy
+                # Calculate scores from all partner answers
+                for i, answer_text in enumerate(partner_answers):
+                    if answer_text:  # Make sure we have an answer
+                        # Find the matching option and add its scores
+                        for option in questions[i]['options']:
+                            if option['text'] == answer_text:
+                                for style, score in option['scores'].items():
+                                    partner_scores[style] += score
+                                break
+                
+                # Calculate partner's attachment style
                 partner_style = calculate_attachment_style(partner_scores)
+                
+                print(f"[DEBUG] Partner test completed - Partner scores: {partner_scores}")
+                print(f"[DEBUG] Partner style calculated: {partner_style}")
                 
                 # Get user's style
                 user_profile = await get_user_profile(user_id)
@@ -1895,7 +1905,7 @@ async def chat_endpoint(msg: Message):
                 response += pdf_notification + affirmation_response
                 
                 # Move to conversation state
-                await set_state(user_id, "conversation", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10)
+                await set_state(user_id, "conversation", None, partner_answers[0], partner_answers[1], partner_answers[2], partner_answers[3], partner_answers[4], partner_answers[5], partner_answers[6], partner_answers[7], partner_answers[8], partner_answers[9])
             
             if original_language in ["en", "ru"]:
                 response = await translate_text(response, original_language)
