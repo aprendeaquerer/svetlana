@@ -82,6 +82,12 @@ async def migrate_database():
     except Exception as e:
         print(f"[DEBUG] (migración) is_premium ya existe o error benigno: {e}")
     
+    # Add language preference column
+    try:
+        await database.execute('ALTER TABLE users ADD COLUMN preferred_language TEXT DEFAULT \'es\'')
+    except Exception as e:
+        print(f"[DEBUG] (migración) preferred_language ya existe o error benigno: {e}")
+    
     return True
 
 async def migrate_user_profile(database):

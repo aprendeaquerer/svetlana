@@ -1131,19 +1131,58 @@ async def chat_endpoint(msg: Message):
         print(f"[DEBUG] === CHAT ENDPOINT START ===")
         print(f"[DEBUG] Message object received: {msg}")
         user_id = msg.user_id
-        # Normalize inbound: translate to Spanish for core logic if needed
-        original_language = (msg.language or "es").lower()
+        # Get user's preferred language or use the one from the message
+        user_preferred_language = await get_user_language_preference(user_id)
+        original_language = (msg.language or user_preferred_language or "es").lower()
         incoming_raw = msg.message.strip()
         print(f"[DEBUG] user_id: {user_id}")
         print(f"[DEBUG] incoming_raw: '{incoming_raw}'")
+        print(f"[DEBUG] msg.language: '{msg.language}'")
+        print(f"[DEBUG] user_preferred_language: '{user_preferred_language}'")
         print(f"[DEBUG] original_language: '{original_language}'")
         print(f"[DEBUG] _translator_available: {_translator_available}")
+        
+        # Check for language switching requests
+        incoming_lower = incoming_raw.lower()
+        language_switch_detected = False
+        if any(phrase in incoming_lower for phrase in ["can we speak in english", "speak in english", "talk in english", "english please", "en inglés"]):
+            original_language = "en"
+            language_switch_detected = True
+            print(f"[DEBUG] Language switch detected: switching to English")
+            # Save the language preference
+            await save_user_language_preference(user_id, "en")
+        elif any(phrase in incoming_lower for phrase in ["can we speak in russian", "speak in russian", "talk in russian", "russian please", "en ruso", "по-русски"]):
+            original_language = "ru"
+            language_switch_detected = True
+            print(f"[DEBUG] Language switch detected: switching to Russian")
+            # Save the language preference
+            await save_user_language_preference(user_id, "ru")
+        elif msg.language and msg.language != user_preferred_language:
+            # Frontend language selector changed
+            original_language = msg.language.lower()
+            print(f"[DEBUG] Frontend language selector changed to: {original_language}")
+            # Save the language preference
+            await save_user_language_preference(user_id, original_language)
         
         if original_language in ["en", "ru"]:
             message = await translate_to_es(incoming_raw, original_language)
         else:
             message = incoming_raw
         print(f"[DEBUG] message (normalized to es): '{message}'")
+        
+        # Handle language switch requests with immediate response
+        if language_switch_detected:
+            if original_language == "en":
+                response = "¡Por supuesto! I'll speak to you in English from now on. How are you doing today?"
+            elif original_language == "ru":
+                response = "¡Por supuesto! Я буду говорить с вами по-русски отныне. Как дела?"
+            else:
+                response = "¡Por supuesto! I'll speak to you in English from now on. How are you doing today?"
+            
+            # Translate the response to the requested language
+            if original_language in ["en", "ru"]:
+                response = await translate_text(response, original_language)
+            return {"response": response}
 
         # Load user context first to check state
         user_context = await load_user_context(user_id)
@@ -2823,3 +2862,32 @@ async def get_user_profile(user_id):
     
     row = await database.fetch_one("SELECT * FROM user_profile WHERE user_id = :user_id", {"user_id": user_id})
     return dict(row) if row else None
+
+async def get_user_language_preference(user_id):
+    """Get user's preferred language from the users table"""
+    if not database or not database.is_connected:
+        return "es"  # Default to Spanish
+    
+    try:
+        row = await database.fetch_one("SELECT preferred_language FROM users WHERE user_id = :user_id", {"user_id": user_id})
+        return row["preferred_language"] if row and row["preferred_language"] else "es"
+    except Exception as e:
+        print(f"[DEBUG] Error getting user language preference: {e}")
+        return "es"
+
+async def save_user_language_preference(user_id, language):
+    """Save user's preferred language to the users table"""
+    if not database or not database.is_connected:
+        return False
+    
+    try:
+        await database.execute("""
+            UPDATE users 
+            SET preferred_language = :language 
+            WHERE user_id = :user_id
+        """, {"user_id": user_id, "language": language})
+        print(f"[DEBUG] Saved language preference '{language}' for user {user_id}")
+        return True
+    except Exception as e:
+        print(f"[DEBUG] Error saving user language preference: {e}")
+        return False
