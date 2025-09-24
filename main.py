@@ -22,7 +22,7 @@ from pydantic import BaseModel
 import uuid
 from passlib.context import CryptContext
 import os
-from typing import Dict, List
+from typing import Dict, List, Any
 import re
 import datetime
 
@@ -1000,7 +1000,22 @@ async def load_user_context(user_id):
             }
         }
     else:
-        test_results = {"completed": False}
+        # If no answer rows, but profile has a stored attachment style, treat as completed
+        if user_profile and user_profile.get("attachment_style"):
+            predominant_style = user_profile.get("attachment_style")
+            style_description = get_style_description(predominant_style, "es")
+            test_results = {
+                "completed": True,
+                "style": predominant_style,
+                "description": style_description,
+                "scores": {"anxious": 0, "avoidant": 0, "secure": 0, "desorganizado": 0},
+                "answers": {
+                    "q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5,
+                    "q6": q6, "q7": q7, "q8": q8, "q9": q9, "q10": q10
+                }
+            }
+        else:
+            test_results = {"completed": False}
     
     # Load conversation history
     conversation_history = await load_conversation_history(user_id, limit=20)
@@ -1199,7 +1214,9 @@ async def chat_endpoint(msg: Message):
                 response = await translate_text(response, original_language)
             return {"response": response}
 
-        # Load user context first to check state
+        # Load full snapshot and user context
+        full_snapshot = await load_full_user_snapshot(user_id)
+        # Load user context (includes computed test_results and history)
         user_context = await load_user_context(user_id)
         state = user_context.get("state")
         test_results = user_context.get("test_results", {})
@@ -2240,6 +2257,18 @@ IMPORTANTE: Usa esta información específica sobre las respuestas del usuario p
                 print(f"[DEBUG] Test context added: {len(test_context)} characters")
             
             # Extract keywords and get relevant knowledge for non-test messages
+            # Always include self and partner results in prompt context
+            user_profile = await get_user_profile(user_id)
+            partner_style = user_profile.get("partner_attachment_style") if user_profile else None
+            relationship_status = user_profile.get("relationship_status") if user_profile else None
+            relationship_description = get_relationship_description(relationship_status, msg.language) if relationship_status else ""
+
+            results_summary = ""
+            if test_results.get("completed"):
+                results_summary += f"\n\n[RESULTADOS USUARIO]\nEstilo: {test_results['style']}\nDescripcion: {test_results.get('description','')}\n"
+            if partner_style:
+                results_summary += f"\n\n[RESULTADOS PAREJA]\nEstilo pareja: {partner_style}\nEstado relacion: {relationship_status}\nDescripcion: {relationship_description}\n"
+
             keywords = extract_keywords(message, msg.language)
             print(f"[DEBUG] Message: '{message}'")
             print(f"[DEBUG] Language: {msg.language}")
@@ -2249,8 +2278,9 @@ IMPORTANTE: Usa esta información específica sobre las respuestas del usuario p
             print(f"[DEBUG] Knowledge found: {len(relevant_knowledge)} characters")
             print(f"[DEBUG] Knowledge content: {relevant_knowledge}")
             
-            # Inject knowledge and test context into the prompt
-            enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge + test_context)
+            # Inject knowledge, results, and full snapshot into the prompt
+            snapshot_str = "\n\n[USER SNAPSHOT]\n" + json.dumps(full_snapshot, default=str)[:4000]
+            enhanced_prompt = inject_knowledge_into_prompt(current_prompt, relevant_knowledge + test_context + results_summary + snapshot_str)
             print(f"[DEBUG] Enhanced prompt length: {len(enhanced_prompt)}")
             print(f"[DEBUG] Enhanced prompt preview: {enhanced_prompt[:500]}...")
             
@@ -2888,6 +2918,32 @@ async def get_user_profile(user_id):
     
     row = await database.fetch_one("SELECT * FROM user_profile WHERE user_id = :user_id", {"user_id": user_id})
     return dict(row) if row else None
+
+async def load_full_user_snapshot(user_id: str) -> Dict[str, Any]:
+    """Load a comprehensive, current snapshot of all user-related DB variables."""
+    snapshot: Dict[str, Any] = {"user_id": user_id}
+    if not database or not database.is_connected:
+        return snapshot
+
+    # Users table (auth + prefs)
+    user_row = await database.fetch_one("SELECT user_id, email, email_verified, is_premium, preferred_language FROM users WHERE user_id = :user_id", {"user_id": user_id})
+    snapshot["user"] = dict(user_row) if user_row else None
+
+    # Profile (personal + relationship info)
+    profile_row = await database.fetch_one("SELECT * FROM user_profile WHERE user_id = :user_id", {"user_id": user_id})
+    snapshot["profile"] = dict(profile_row) if profile_row else None
+
+    # Test state (flow + answers)
+    test_row = await database.fetch_one(
+        """
+        SELECT state, last_choice, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10
+        FROM test_state WHERE user_id = :user_id
+        """,
+        {"user_id": user_id},
+    )
+    snapshot["test_state"] = dict(test_row) if test_row else None
+
+    return snapshot
 
 async def get_user_language_preference(user_id):
     """Get user's preferred language from the users table"""
