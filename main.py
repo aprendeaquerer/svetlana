@@ -1906,9 +1906,18 @@ async def chat_endpoint(msg: Message):
                         f"</ul>"
                         f"<p>¿Te gustaría explorar esto más a fondo o hablar de cómo esto afecta tus relaciones?</p>"
                     )
-                print(f"[DEBUG] Moving to post_test state: q1={q1}, q2={q2}, q3={q3}, q4={q4}, q5={q5}, q6={q6}, q7={q7}, q8={q8}, q9={q9}, q10={selected_option['text']}")
-                await set_state(user_id, "post_test", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
-                return {"response": response}
+                # Immediately append PDF notification and paywall after results
+                pdf_notification = await generate_pdf_notification(user_id, msg.language)
+                paywall_message = await generate_paywall_message(user_id, msg.language)
+                full_response = response + pdf_notification + "<br><br>" + paywall_message
+
+                # Move directly to paywall state to capture A/B choice
+                print(f"[DEBUG] Moving to paywall state immediately after results")
+                await set_state(user_id, "paywall", None, q1, q2, q3, q4, q5, q6, q7, q8, q9, selected_option['text'])
+
+                if original_language in ["en", "ru"]:
+                    full_response = await translate_text(full_response, original_language)
+                return {"response": full_response}
         
         # Handle partner test questions (partner_q1, partner_q2, etc.)
         elif state in [f"partner_q{i}" for i in range(1, 11)] and message.upper() in ["A", "B", "C", "D"]:
