@@ -1164,6 +1164,21 @@ async def chat_endpoint(msg: Message):
             # Save the language preference
             await save_user_language_preference(user_id, original_language)
         
+        # Pre-translation trigger detection using the user's selected language
+        greeting_triggers_map = {
+            "es": ["saludo inicial", "hola"],
+            "en": ["initial greeting", "hi", "hello"],
+            "ru": ["начальное приветствие", "привет", "здравствуйте"],
+        }
+        test_triggers_map = {
+            "es": ["test", "quiero hacer el test", "hacer test", "hacer el test"],
+            "en": ["test", "start test"],
+            "ru": ["тест", "начать тест"],
+        }
+        selected_lang_for_triggers = original_language if original_language in ["es", "en", "ru"] else "es"
+        pre_greeting_trigger = any(t == incoming_lower for t in greeting_triggers_map.get(selected_lang_for_triggers, ["saludo inicial"]))
+        pre_test_trigger = any(incoming_lower == t for t in test_triggers_map.get(selected_lang_for_triggers, ["test"]))
+
         if original_language in ["en", "ru"]:
             message = await translate_to_es(incoming_raw, original_language)
         else:
@@ -1456,8 +1471,9 @@ async def chat_endpoint(msg: Message):
         print(f"[DEBUG] Checking greeting triggers...")
         print(f"[DEBUG] Message lower: '{message.lower()}'")
         print(f"[DEBUG] Expected trigger: '{greeting_triggers.get(msg.language, 'saludo inicial')}'")
-        
-        if message.lower() == greeting_triggers.get(msg.language, "saludo inicial"):
+
+        # Use pre-translation detection to avoid language mismatches
+        if pre_greeting_trigger:
             print(f"[DEBUG] GREETING TRIGGER MATCHED!")
             print(f"[DEBUG] FORCE SHOW INITIAL GREETING (message == '{message}') - resetting state to 'greeting'")
             # Preserve existing test answers when resetting to greeting state
@@ -1632,7 +1648,8 @@ async def chat_endpoint(msg: Message):
         # Always handle test triggers as a hard reset to test start (but not greeting triggers)
         test_triggers = ["test", "quiero hacer el test", "hacer test", "start test", "quiero hacer el test", "quiero hacer test", "hacer el test"]
         greeting_triggers_list = list(greeting_triggers.values())
-        if message.lower() in test_triggers and message.lower() not in greeting_triggers_list:
+        # Prefer pre-detected test trigger (before translation) to avoid mismatches
+        if pre_test_trigger and not pre_greeting_trigger:
             print("[DEBUG] FORCE START TEST (message in test_triggers)")
             # Check if user already has test answers - if so, preserve them
             if any([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10]):
